@@ -1,0 +1,17 @@
+[Unit]
+Description=httpcat service
+After=
+
+[Service]
+# 当 systemd 服务文件中配置了 User=root 后,服务进程看起来是以 root 用户运行,但实际上是在一个有限的沙箱环境中
+# systemd 默认会启用一些安全隔离机制,比如动态用户(DynamicUser)、私有临时文件系统(PrivateTmp)等
+# User=root
+Type=forking
+WorkingDirectory=/root
+ExecStart=/usr/local/bin/httpcat  --static=/home/web/website/upload/  --c /etc/httpdcat/svr.yml
+# ExecStop=/opt/lighthouse/server/bin/start_scripts/lighthouse_service.sh stop >> /tmp/lighthouse_systemd.log
+Restart=always
+RestartSec=5
+TimeoutStartSec=300
+[Install]
+WantedBy=multi-user.target

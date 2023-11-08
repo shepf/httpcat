@@ -1,0 +1,25 @@
+server:
+  log:
+    applog:
+      path: ./log/svr.log
+      loglevel: 0
+
+  ssl:
+    keyfile: ./conf/server.key
+    certfile: ./conf/server.crt
+    rawdata_keyfile: ./conf/rd_server.key
+    rawdata_certfile: ./conf/rd_server.crt
+    cafile: ./conf/ca.crt
+
+  http:
+    port: 8888
+    auth:
+      enable: false
+      aksk:
+        0376b2a4c481sef5: 60b29se7164027072799f565eb964dxx
+    ssl:
+      enable: false
+
+  pprof:
+    enable: true
+    port: 6753
