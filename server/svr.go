@@ -39,6 +39,8 @@ func RunAPIServer(port int, enableSSL, enableAuth bool, certFile, keyFile string
 	//1. StaticFS 更适合提供静态资源文件的访问,这些文件通常对所有用户都是公开的,不需要鉴权。
 	//2. 对于需要权限控制的文件下载,实现 API 方式更合适,可以方便地在代码中添加鉴权逻辑。
 	api.GET("/download", downloadFile)
+	// 获取目录文件列表
+	api.GET("/listFiles", listFiles)
 
 	var err error
 	ylog.Infof("RunServer", "####HTTP_LISTEN_ON:%d", port)

@@ -78,7 +78,14 @@ go run cmd/httpcat.go --static=/home/web/website/upload/  --c server/conf/svr.ym
 ###  下载文件
 
 ## 
+指定静态资源目录为上传目录，这样就可以直接访问上传的文件了。
 go run cmd/httpcat.go --static=/home/web/website/upload/  --c server/conf/svr.yml
 
+## 提交代码，检查git 用户名和邮箱
+使用以下命令来查看全局配置
+git config --global user.name
+git config --global user.email
 
-
+查看当前仓库配置
+git config user.name
+git config user.email
