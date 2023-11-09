@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 )
 
 func RunAPIServer(port int, enableSSL, enableAuth bool, certFile, keyFile string) {
@@ -128,10 +127,12 @@ func listFiles(c *gin.Context) {
 	dirPath := c.Query("dir")
 
 	// 检查目录路径
-	if !strings.HasPrefix(dirPath, common.UploadDir) {
-		c.AbortWithStatus(403)
-		return
-	}
+	//if !strings.HasPrefix(dirPath, common.UploadDir) {
+	//	c.AbortWithStatus(403)
+	//	return
+	//}
+
+	dirPath = common.UploadDir + dirPath
 
 	// 读取目录
 	files, err := ioutil.ReadDir(dirPath)
