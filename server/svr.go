@@ -10,6 +10,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
 )
 
@@ -17,29 +19,7 @@ func RunAPIServer(port int, enableSSL, enableAuth bool, certFile, keyFile string
 
 	//生成一个 Engine，这是 gin 的核心，默认带有 Logger 和 Recovery 两个中间件
 	router := gin.Default()
-
-	//定义根路径路由,显示首页
-	router.GET("/", func(c *gin.Context) {
-		c.File("./static/index.html")
-	})
-
-	// 使用两个路由组,一个处理静态文件,一个处理 API
-	//在这个静态文件组中,以`common.StaticDir`作为静态文件根目录,并且映射到路由`/static`下。这样访问:
-	static := router.Group("/static")
-	static.StaticFS("/", http.Dir(common.StaticDir))
-
-	api := router.Group("/api")
-	api.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "pong"})
-	})
-	api.POST("/upload", uploadFile)
-	//使用实现 API 方式进行文件下载,而不是直接通过 StaticFS 暴露文件：
-	//原因是:
-	//1. StaticFS 更适合提供静态资源文件的访问,这些文件通常对所有用户都是公开的,不需要鉴权。
-	//2. 对于需要权限控制的文件下载,实现 API 方式更合适,可以方便地在代码中添加鉴权逻辑。
-	api.GET("/download", downloadFile)
-	// 获取目录文件列表
-	api.GET("/listFiles", listFiles)
+	RegisterRouter(router)
 
 	var err error
 	ylog.Infof("RunServer", "####HTTP_LISTEN_ON:%d", port)
@@ -89,7 +69,10 @@ func downloadFile(c *gin.Context) {
 	// 从请求参数获取文件名
 	fileName := c.Query("filename")
 
-	path := common.DownloadDir + fileName
+	path := filepath.Join(common.DownloadDir, fileName)
+	//打印
+	ylog.Infof("downloadFile", "download file from: %s", path)
+
 	// 打开文件
 	file, err := os.Open(path)
 	if err != nil {
@@ -141,7 +124,47 @@ func listFiles(c *gin.Context) {
 		return
 	}
 
-	// 返回文件名和文件信息
-	c.JSON(200, files)
+	// 按照文件时间倒序排列
+	sort.SliceStable(files, func(i, j int) bool {
+		return files[j].ModTime().Before(files[i].ModTime())
+	})
 
+	// 构建返回结果
+	var fileList []map[string]interface{}
+	for _, fileInfo := range files {
+		fileEntry := make(map[string]interface{})
+		fileEntry["FileName"] = fileInfo.Name()
+		fileEntry["LastModified"] = fileInfo.ModTime().Format("2006-01-02 15:04:05")
+		fileEntry["Size"] = formatSize(fileInfo.Size())
+		fileList = append(fileList, fileEntry)
+	}
+
+	// 返回文件列表
+	common.CreateResponse(c, common.SuccessCode, fileList)
+
+}
+
+func formatSize(size int64) string {
+	const (
+		B = 1 << (10 * iota)
+		KB
+		MB
+		GB
+		TB
+		PB
+	)
+
+	switch {
+	case size >= PB:
+		return fmt.Sprintf("%.2f PB", float64(size)/PB)
+	case size >= TB:
+		return fmt.Sprintf("%.2f TB", float64(size)/TB)
+	case size >= GB:
+		return fmt.Sprintf("%.2f GB", float64(size)/GB)
+	case size >= MB:
+		return fmt.Sprintf("%.2f MB", float64(size)/MB)
+	case size >= KB:
+		return fmt.Sprintf("%.2f KB", float64(size)/KB)
+	}
+	return fmt.Sprintf("%d B", size)
 }

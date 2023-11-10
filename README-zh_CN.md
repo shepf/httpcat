@@ -77,6 +77,17 @@ go run cmd/httpcat.go --static=/home/web/website/upload/  --c server/conf/svr.ym
 
 ###  下载文件
 
+## 接口签名
+将请求方法、URL、查询字符串、访问密钥、时间戳、请求体的哈希值等信息按照一定规则拼接起来，并使用给定的密钥进行签名计算。
+生成的签名用于在请求头部或其他方式中进行身份验证或安全控制。
+
+## api 接口
+查看下载根目录下，某个目录的文件列表
+http://127.0.0.1:8888/api/v1/file/listFiles?dir=
+下载某个具体的文件
+http://127.0.0.1:8888/api/v1/file/download?filename=FlF9mrjXgAAZHon.jpg
+
+
 ## 
 指定静态资源目录为上传目录，这样就可以直接访问上传的文件了。
 go run cmd/httpcat.go --static=/home/web/website/upload/  --c server/conf/svr.yml

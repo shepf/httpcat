@@ -20,6 +20,8 @@ var (
 	SSLCaFile          string
 	HttpAuthEnable     bool
 	HttpAkSkMap        map[string]string //access key and secret key list, which used to identify whether the http request comes from a known subject
+	SvrAK              string            // access key, which use for http sign
+	SvrSK              string            // secret key, which use for http sign
 
 	StaticDir   string
 	Port        int
