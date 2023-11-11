@@ -27,6 +27,7 @@ var (
 	Port        int
 	UploadDir   string
 	DownloadDir string
+	FileEnable  bool // 决定是否注册file路由，false：就只能做http服务使用 true：文件上传下载等功能
 
 	PProfEnable bool
 	PProfPort   int //pprof

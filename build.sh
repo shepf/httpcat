@@ -5,14 +5,35 @@ if ! type go >/dev/null 2>&1; then
     exit 1
 fi
 
-rm -rf output
-mkdir -p output/
-go mod download
-go build -ldflags "-s -w" -o ./output/httpcat ./cmd/httpcat.go
+# Clean output directory
+rm -rf release
+mkdir -p release
+go mod tidy
 
-#cd output
-#tar zcvf bin.tar.gz ./*
-#rm -f httpcat
+# Build for Linux
+echo "Building for Linux"
+HTTPCAT_BUILD=$(date "+%Y%m%d%H%M")
+GOOS=linux GOARCH=amd64 go build \
+ -ldflags "-s -w" \
+ -ldflags "-X gin_web_demo.server.Version=0.0.1 -X gin_web_demo.server.Build=$HTTPCAT_BUILD" \
+ -o ./release/httpcat ./cmd/httpcat.go
+
+# Build for Windows
+echo "Building for Windows"
+GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o ./release/httpcat.exe ./cmd/httpcat.go
+
+# Package configuration file and static files
+cp -r server/conf release/
+cp -r static release/
+
+# Create release archive for Linux
+cd release
+tar zcvf httpcat_linux.tar.gz ./*
+
+# Return to the root directory
+cd ..
+
+echo "Build complete"
 
 
 config_systemd(){

@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"gin_web_demo/server/common"
+	"gin_web_demo/server/common/ylog"
 	"gin_web_demo/server/midware"
 	"net/http"
 	"strings"
@@ -67,17 +68,20 @@ func RegisterRouter(r *gin.Engine) {
 		//	userRouter.POST("/checkUser", v1.CheckPassword)
 		//}
 
-		// 文件操作相关接口
-		fileRouter := apiv1Group.Group("/file")
-		{
-			fileRouter.POST("/upload", uploadFile)
-			//使用实现 API 方式进行文件下载,而不是直接通过 StaticFS 暴露文件：
-			//原因是:
-			//1. StaticFS 更适合提供静态资源文件的访问,这些文件通常对所有用户都是公开的,不需要鉴权。
-			//2. 对于需要权限控制的文件下载,实现 API 方式更合适,可以方便地在代码中添加鉴权逻辑。
-			fileRouter.GET("/download", downloadFile)
-			// 获取目录文件列表
-			fileRouter.GET("/listFiles", listFiles)
+		if common.FileEnable {
+			ylog.Infof("[ROUTE]", "httpcat 开启 文件上传下载功能")
+			// 文件操作相关接口
+			fileRouter := apiv1Group.Group("/file")
+			{
+				fileRouter.POST("/upload", uploadFile)
+				//使用实现 API 方式进行文件下载,而不是直接通过 StaticFS 暴露文件：
+				//原因是:
+				//1. StaticFS 更适合提供静态资源文件的访问,这些文件通常对所有用户都是公开的,不需要鉴权。
+				//2. 对于需要权限控制的文件下载,实现 API 方式更合适,可以方便地在代码中添加鉴权逻辑。
+				fileRouter.GET("/download", downloadFile)
+				// 获取目录文件列表
+				fileRouter.GET("/listFiles", listFiles)
+			}
 		}
 
 	}

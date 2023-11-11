@@ -1,32 +1,53 @@
 [English](README.md) | 简体中文
-## HttpCat 概述
-一个基于HTTP的文件传输瑞士军刀。
-HttpCat专注于利用HTTP/HTTPS协议进行简单、高效、稳定的文件上传和下载。
+## 🚀HttpCat 概述 
 
-HttpCat是一个可靠、高效、易用的HTTP文件传输瑞士军刀,它将大大提高你的文件传输控制力和体验。无论是临时分享还是批量传输文件,HttpCat都将是你的优秀助手。
+HttpCat 是一个基于 HTTP 的文件传输工具，旨在提供简单、高效、稳定的文件上传和下载功能。
 
-## 功能特点
-- 简单
-- 无依赖，可移植性好
+项目目标：一个可靠、高效、易用的HTTP文件传输瑞士军刀,它将大大提高你的文件传输控制力和体验。
+无论是临时分享还是批量传输文件,HttpCat都将是你的优秀助手。
 
-## 编译
-chmod +x build.sh
-./build.sh
+## 💥功能特点
+* 简单易用
+* 无需外部依赖，易于移植
 
-生成可执行文件： output/httpcat
+## 🎉安装 
+下载：
 
-cp output/httpcat /usr/local/bin/
-httpcat -h
 
-配置文件：
-mkdir -p /etc/httpdcat
-cp server/conf/svr.yml /etc/httpdcat/svr.yml
+解压:
+```bash
+tar -zxvf httpcat_*.tar.gz
+```
 
+修改配置文件:
+```bash
+cd httpcat*
+vi ./conf/svr.yml
+```
+
+运行:
+```bash
+./httpcat -c conf/svr.yml
+```
+
+```bash
+# ./httpcat -h
+Usage of ./httpcat:
+--c string          ConfigPath (default "./conf/svr.yml")
+--download string   指定下载文件的路径,右斜线结尾 (default "./website/download/")
+-P, --port int          host port. (default 8888)
+--static string     指定静态资源路径(web) (default "./website/static")
+--upload string     指定上传文件的路径,右斜线结尾 (default "./website/upload/")
+```
+
+### 使用tmux运行在后台
 可以利用tmux方式后台运行:
-cd /root
+```bash
 Create a new tmux session using a socket file named tmux_httpcat
 $ tmux -S tmux_httpcat
 
+# 进入tmux后，可以执行运行命令,如：
+httpcat --static=/home/web/website/upload/  --c server/conf/svr.yml
 
 Move process to background by detaching
 Ctrl+b d OR ⌘+b d (Mac)
@@ -39,64 +60,36 @@ $ tmux new-session -A -D -s tmux_httpcat
 
 To delete farming session
 $ tmux kill-session -t tmux_httpcat
-
-### 配置开机自启动
-
-
-
-### 无鉴权直接访问上传文件
-当我想直接访问访问上传的文件，也不需要鉴权场景，我们可以在启动参数中指定静态资源目录为上传目录，这样就可以直接访问上传的文件了。
-例如：
-go run cmd/httpcat.go --static=/home/web/website/upload/  --c server/conf/svr.yml
-
-
-## 使用
-### 使用curl上传文件
-注意： f1 为服务端代码定义的，修改为其他，如file，会报错上传失败。
-```bash
-# curl -vF "f1=@/root/test.lz4" http://localhost:8888/api/upload
-*   Trying 127.0.0.1:80...
-* TCP_NODELAY set
-* Connected to localhost (127.0.0.1) port 80 (#0)
-> POST /upload HTTP/1.1
-> Host: localhost
-> User-Agent: curl/7.68.0
-> Accept: */*
-> Content-Length: 734
-> Content-Type: multipart/form-data; boundary=------------------------1538dd9d9ac92293
->
-* We are completely uploaded and fine
-* Mark bundle as not supporting multiuse
-  < HTTP/1.1 201 Created
-  < Content-Type: text/plain; charset=utf-8
-  < Date: Tue, 07 Nov 2023 07:46:18 GMT
-  < Content-Length: 19
-  <
-  upload successful
 ```
 
-###  下载文件
+## ❤使用技巧
+### 使用curl工具上传文件
+```bash
+curl -vF "f1=@/root/hello.mojo" http://localhost:8888/api/v1/file/upload
+```
+使用了 `curl` 命令来向指定的 URL 发送一个 `multipart/form-data` 格式的 POST 请求。下面是对每部分的解释：
+- `curl`: 一个用来与服务器端进行数据传输的工具，支持多种协议。
+- `-v`: 在命令执行时输出详细的操作信息，即 verbose 模式。
+- `-F "f1=@/root/hello.mojo"`: 指定了要发送的表单数据。`-F` 选项表示要发送一个表单，`f1=@/root/hello.mojo` 表示要上传的文件字段名为 `f1`，文件路径为 `/root/hello.mojo`。这个字段的值是指向本地文件的相对或绝对路径。
+- `http://localhost:8888/api/v1/file/upload`: 要发送请求到的 URL，这条命令会将文件上传到这个 URL。
 
-## 接口签名
-将请求方法、URL、查询字符串、访问密钥、时间戳、请求体的哈希值等信息按照一定规则拼接起来，并使用给定的密钥进行签名计算。
-生成的签名用于在请求头部或其他方式中进行身份验证或安全控制。
+> 注意： f1 为服务端代码定义的，修改为其他，如file，会报错上传失败。
 
-## api 接口
+
+### 下载文件
+#### api 接口
 查看下载根目录下，某个目录的文件列表
-http://127.0.0.1:8888/api/v1/file/listFiles?dir=
+`http://127.0.0.1:8888/api/v1/file/listFiles?dir=
+`
 下载某个具体的文件
-http://127.0.0.1:8888/api/v1/file/download?filename=FlF9mrjXgAAZHon.jpg
+`http://127.0.0.1:8888/api/v1/file/download?filename=xxx.jpg
+`
 
+## 💪TODO
+1. 接口增加签名认证机制
+   将请求方法、URL、查询字符串、访问密钥、时间戳、请求体的哈希值等信息按照一定规则拼接起来，并使用给定的密钥进行签名计算。
+   生成的签名用于在请求头部或其他方式中进行身份验证或安全控制。
+2. 支持p2p环境下http使用
+3. https支持
 
-## 
-指定静态资源目录为上传目录，这样就可以直接访问上传的文件了。
-go run cmd/httpcat.go --static=/home/web/website/upload/  --c server/conf/svr.yml
-
-## 提交代码，检查git 用户名和邮箱
-使用以下命令来查看全局配置
-git config --global user.name
-git config --global user.email
-
-查看当前仓库配置
-git config user.name
-git config user.email
+欢迎提issue~ Good luck 🍀

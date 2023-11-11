@@ -19,6 +19,8 @@ server:
         0376b2a4c481sef5: 60b29se7164027072799f565eb964dxx
     ssl:
       enable: false
+    file:
+      enable: true
 
   pprof:
     enable: true

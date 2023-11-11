@@ -10,14 +10,14 @@ import (
 
 func init() {
 	// 结尾的Var表示支持将参数的值，绑定到变量
-	pflag.StringVar(&StaticDir, "static", "/home/web/website/static", "指定静态资源路径(主要用于web界面)")
-	pflag.StringVar(&UploadDir, "upload", "/home/web/website/upload/", "指定上传文件的路径，右斜线结尾")
-	pflag.StringVar(&DownloadDir, "download", "/home/web/website/download/", "指定下载文件的路径，右斜线结尾")
+	pflag.StringVar(&StaticDir, "static", "./website/static/", "指定静态资源路径(可用于web界面)")
+	pflag.StringVar(&UploadDir, "upload", "./website/upload/", "指定上传文件的路径，右斜线结尾")
+	pflag.StringVar(&DownloadDir, "download", "./website/download/", "指定下载文件的路径，右斜线结尾")
 
 	// 结尾的P表示支持短选项
 	pflag.IntVarP(&Port, "port", "P", 8888, "host port.")
 
-	confPath := pflag.String("c", "conf/svr.yml", "ConfigPath")
+	confPath := pflag.String("c", "./conf/svr.yml", "ConfigPath")
 
 	pflag.Parse()
 	ConfPath = *confPath
@@ -53,6 +53,9 @@ func initDefault() {
 	HttpSSLEnable = UserConfig.GetBool("server.http.ssl.enable")
 	HttpAuthEnable = UserConfig.GetBool("server.http.auth.enable")
 	HttpAkSkMap = UserConfig.GetStringMapString("server.http.auth.aksk")
+
+	// for 业务
+	FileEnable = UserConfig.GetBool("server.http.file.enable")
 
 }
 
