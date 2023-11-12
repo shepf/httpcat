@@ -10,12 +10,12 @@ import (
 
 func init() {
 	// 结尾的Var表示支持将参数的值，绑定到变量
-	pflag.StringVar(&StaticDir, "static", "./website/static/", "指定静态资源路径(可用于web界面)")
-	pflag.StringVar(&UploadDir, "upload", "./website/upload/", "指定上传文件的路径，右斜线结尾")
-	pflag.StringVar(&DownloadDir, "download", "./website/download/", "指定下载文件的路径，右斜线结尾")
+	pflag.StringVar(&StaticDir, "static", "./website/static/", "指定静态资源路径(web)")
+	pflag.StringVar(&UploadDir, "upload", "./website/upload/", "指定上传文件的路径,右斜线结尾")
+	pflag.StringVar(&DownloadDir, "download", "./website/download/", "指定下载文件的路径,右斜线结尾")
 
 	// 结尾的P表示支持短选项
-	pflag.IntVarP(&HttpPort, "port", "P", 8888, "host port.")
+	pflag.IntVarP(&HttpPort, "port", "P", 0, "host port.")
 	// 结尾的P表示支持短选项
 	confPath := pflag.StringP("config", "C", "./conf/svr.yml", "ConfigPath")
 
@@ -49,7 +49,11 @@ func initDefault() {
 		ylog.Fatalf("init", "ssl file empty SSLKeyFile:%s SSLCertFile:%s SSLCaFile:%s SSLRawDataKeyFile:%s SSLRawDataCertFile:%s", SSLKeyFile, SSLCertFile, SSLCaFile, SSLRawDataKeyFile, SSLRawDataCertFile)
 	}
 
-	HttpPort = UserConfig.GetInt("server.http.port")
+	// 优先使用命令行传入值
+	if HttpPort == 0 {
+		HttpPort = UserConfig.GetInt("server.http.port")
+	}
+
 	HttpSSLEnable = UserConfig.GetBool("server.http.ssl.enable")
 	HttpAuthEnable = UserConfig.GetBool("server.http.auth.enable")
 	HttpAkSkMap = UserConfig.GetStringMapString("server.http.auth.aksk")

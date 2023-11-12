@@ -12,15 +12,21 @@ go mod tidy
 
 # Build for Linux
 echo "Building for Linux"
+
+HTTPCAT_VERSION=v0.0.1
 HTTPCAT_BUILD=$(date "+%Y%m%d%H%M")
 GOOS=linux GOARCH=amd64 go build \
  -ldflags "-s -w" \
- -ldflags "-X gin_web_demo.server.Version=0.0.1 -X gin_web_demo.server.Build=$HTTPCAT_BUILD" \
+ -ldflags "-X gin_web_demo/server.Version=$HTTPCAT_VERSION -X gin_web_demo/server.Build=$HTTPCAT_BUILD" \
  -o ./release/httpcat ./cmd/httpcat.go
 
 # Build for Windows
 echo "Building for Windows"
-GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o ./release/httpcat.exe ./cmd/httpcat.go
+GOOS=windows GOARCH=amd64 go build \
+ -ldflags "-s -w" \
+ -ldflags "-X gin_web_demo.server.Version=$HTTPCAT_VERSION -X gin_web_demo.server.Build=$HTTPCAT_BUILD" \
+ -o ./release/httpcat.exe ./cmd/httpcat.go
+
 
 # Package configuration file and static files
 cp -r server/conf release/
@@ -28,7 +34,7 @@ cp -r static release/
 
 # Create release archive for Linux
 cd release
-tar zcvf httpcat_linux.tar.gz ./*
+tar zcvf httpcat_$HTTPCAT_VERSION.tar.gz ./*
 
 # Return to the root directory
 cd ..
