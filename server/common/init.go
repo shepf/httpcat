@@ -15,9 +15,9 @@ func init() {
 	pflag.StringVar(&DownloadDir, "download", "./website/download/", "指定下载文件的路径，右斜线结尾")
 
 	// 结尾的P表示支持短选项
-	pflag.IntVarP(&Port, "port", "P", 8888, "host port.")
-
-	confPath := pflag.String("c", "./conf/svr.yml", "ConfigPath")
+	pflag.IntVarP(&HttpPort, "port", "P", 8888, "host port.")
+	// 结尾的P表示支持短选项
+	confPath := pflag.StringP("config", "C", "./conf/svr.yml", "ConfigPath")
 
 	pflag.Parse()
 	ConfPath = *confPath
