@@ -12,6 +12,9 @@ var (
 	ConfPath   string
 
 	HttpPort           int
+	HttpReadTimeout    int64
+	HttpWriteTimeout   int64
+	HttpIdleTimeout    int64
 	HttpSSLEnable      bool
 	SSLKeyFile         string
 	SSLCertFile        string

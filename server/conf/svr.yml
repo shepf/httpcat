@@ -17,6 +17,11 @@ server:
       enable: false
       aksk:
         0376b2a4c481sef5: 60b29se7164027072799f565eb964dxx
+    # 需要上传下载大文件，需要设置较长的读写超时,单位s,你上传的时间大于这个时间，就需要调整下面的值
+    read_timeout: 1800
+    write_timeout: 1800
+    idle_timeout: 1800
+
     ssl:
       enable: false
     file:

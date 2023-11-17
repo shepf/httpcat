@@ -7,12 +7,14 @@ import (
 
 const (
 	SuccessCode = iota
+	ErrorCode
+
 	AuthFailedErrorCode
 	DuplicateFieldErrorCode
-	DBOperateErrorCode
+
 	RedisOperateErrorCode
 	ParamInvalidErrorCode
-	DBNoRowAffectedErrorCode
+
 	TemporarilyUnavailable
 	ErrorIDLen
 	ErrorID
@@ -28,16 +30,18 @@ const (
 	NeedCaptchaCheck
 	LoginIpNotInWhiteList
 	UserLocked
+
+	//业务错误码
+	DirISNotExists
+	ReadDirFailed
 )
 
 var ErrorDescriptions = map[int]string{
 	SuccessCode:              "success",
 	AuthFailedErrorCode:      "auth failed",
 	DuplicateFieldErrorCode:  "duplicate field",
-	DBOperateErrorCode:       "db operate error",
 	RedisOperateErrorCode:    "redis operate error",
 	ParamInvalidErrorCode:    "param invalid",
-	DBNoRowAffectedErrorCode: "db no row affected",
 	TemporarilyUnavailable:   "resource temporarily unavailable",
 	ErrorIDLen:               "ID MAX LEN IS 1-15",
 	ErrorID:                  "ID ONLY SYUUPRT 'A-Z/a-z/0-9/-/_'",
@@ -52,6 +56,10 @@ var ErrorDescriptions = map[int]string{
 	NeedCaptchaCheck:         "need captcha check",
 	LoginIpNotInWhiteList:    "login ip not in whitelist",
 	UserLocked:               "user locked",
+
+	//业务错误码
+	DirISNotExists: "did is not exists",
+	ReadDirFailed:  "read dir failed",
 }
 
 type Response struct {

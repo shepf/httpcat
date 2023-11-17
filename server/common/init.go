@@ -53,6 +53,9 @@ func initDefault() {
 	if HttpPort == 0 {
 		HttpPort = UserConfig.GetInt("server.http.port")
 	}
+	HttpReadTimeout = UserConfig.GetInt64("server.http.read_timeout")
+	HttpWriteTimeout = UserConfig.GetInt64("server.http.write_timeout")
+	HttpIdleTimeout = UserConfig.GetInt64("server.http.idle_timeout")
 
 	HttpSSLEnable = UserConfig.GetBool("server.http.ssl.enable")
 	HttpAuthEnable = UserConfig.GetBool("server.http.auth.enable")

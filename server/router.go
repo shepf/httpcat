@@ -73,6 +73,8 @@ func RegisterRouter(r *gin.Engine) {
 			// 文件操作相关接口
 			fileRouter := apiv1Group.Group("/file")
 			{
+				//获取配置文件中的上传下载目录配置
+				fileRouter.GET("/getDirConf", getDirConf)
 				fileRouter.POST("/upload", uploadFile)
 				//使用实现 API 方式进行文件下载,而不是直接通过 StaticFS 暴露文件：
 				//原因是:
@@ -81,6 +83,8 @@ func RegisterRouter(r *gin.Engine) {
 				fileRouter.GET("/download", downloadFile)
 				// 获取目录文件列表
 				fileRouter.GET("/listFiles", listFiles)
+				// 获取某个文件的信息
+				fileRouter.GET("/fileInfo", fileInfo)
 			}
 		}
 
