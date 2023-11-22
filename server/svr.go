@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"gin_web_demo/server/common"
 	"gin_web_demo/server/common/ylog"
+	"gin_web_demo/server/p2p"
 	"github.com/gin-gonic/gin"
+	"github.com/libp2p/go-libp2p"
 	"io"
 	"io/ioutil"
 	"log"
@@ -37,6 +39,11 @@ func RunAPIServer(port int, enableSSL, enableAuth bool, certFile, keyFile string
 		IdleTimeout: time.Duration(common.HttpIdleTimeout) * time.Second,
 	}
 
+	enableP2P := common.P2pEnable
+	if enableP2P {
+		go runP2PServer(router)
+	}
+
 	var err error
 	ylog.Infof("RunServer", "####HTTP_LISTEN_ON:%d", port)
 	if enableSSL {
@@ -48,6 +55,48 @@ func RunAPIServer(port int, enableSSL, enableAuth bool, certFile, keyFile string
 	}
 	if err != nil {
 		ylog.Errorf("RunServer", "####http run error: %v", err)
+	}
+
+}
+
+func runP2PServer(router *gin.Engine) {
+
+	// To construct a simple host with all the default settings, just use `New`
+	ip := common.P2pListenIP
+	port := common.P2pListenPort
+	listenAddr := fmt.Sprintf("/ip4/%s/tcp/%d", ip, port)
+	fmt.Println("p2p listenAddr:", listenAddr)
+	h, err := libp2p.New(
+		libp2p.ListenAddrStrings(
+			listenAddr, // "/ip4/0.0.0.0/tcp/9000", // regular tcp connections
+			//"/ip4/0.0.0.0/udp/9000/quic", // a UDP endpoint for the QUIC transport
+		),
+	)
+
+	if err != nil {
+		panic(err)
+	}
+	defer h.Close()
+
+	fmt.Printf("Hello World, my p2p hosts ID is %s\n", h.ID())
+
+	// 设置mDNS服务
+	if common.EnableMdns {
+		fmt.Printf("hosts ID is %s enable MDNS for discory node!\n", h.ID())
+		peerChan := p2p.InitMDNS(h, common.RendezvousString)
+		for { // allows multiple peers to join
+			peer := <-peerChan // will block until we discover a peer
+			//fmt.Println("Found peer:", peer, ", connecting")
+			fmt.Println("Found peer:")
+			fmt.Println("ID:", peer.ID)
+			fmt.Println("Address:", peer.Addrs[0].String())
+			for _, addr := range peer.Addrs {
+				fmt.Println("Address:", addr.String())
+			}
+
+		}
+		// todo 发现节点TODO 工作
+
 	}
 
 }

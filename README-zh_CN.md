@@ -52,7 +52,7 @@ Create a new tmux session using a socket file named tmux_httpcat
 $ tmux -S tmux_httpcat
 
 # 进入tmux后，可以执行运行命令,如：
-httpcat --static=/home/web/website/upload/  --c server/conf/svr.yml
+httpcat --static=/home/web/website/upload/  -C server/conf/svr.yml
 
 Move process to background by detaching
 Ctrl+b d OR ⌘+b d (Mac)

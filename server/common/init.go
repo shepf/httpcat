@@ -64,6 +64,14 @@ func initDefault() {
 	// for 业务
 	FileEnable = UserConfig.GetBool("server.http.file.enable")
 
+	// for p2p
+	P2pEnable = UserConfig.GetBool("server.p2p.enable")
+	P2pListenIP = UserConfig.GetString("server.p2p.listen.ip")
+	P2pListenPort = UserConfig.GetInt("server.p2p.listen.port")
+
+	EnableMdns = UserConfig.GetBool("server.p2p.mdns.enable")
+	RendezvousString = UserConfig.GetString("server.p2p.mdns.rendezvous")
+
 }
 
 func initLog() {
