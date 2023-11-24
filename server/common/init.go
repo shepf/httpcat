@@ -16,6 +16,7 @@ func init() {
 
 	// 结尾的P表示支持短选项
 	pflag.IntVarP(&HttpPort, "port", "P", 0, "host port.")
+	pflag.IntVar(&P2pListenPort, "p2pport", 0, "p2p host port.")
 	// 结尾的P表示支持短选项
 	confPath := pflag.StringP("config", "C", "./conf/svr.yml", "ConfigPath")
 
@@ -67,10 +68,16 @@ func initDefault() {
 	// for p2p
 	P2pEnable = UserConfig.GetBool("server.p2p.enable")
 	P2pListenIP = UserConfig.GetString("server.p2p.listen.ip")
-	P2pListenPort = UserConfig.GetInt("server.p2p.listen.port")
-
+	// 优先使用命令行传入值
+	if P2pListenPort == 0 {
+		P2pListenPort = UserConfig.GetInt("server.p2p.listen.port")
+	}
+	// discovery node
 	EnableMdns = UserConfig.GetBool("server.p2p.mdns.enable")
 	RendezvousString = UserConfig.GetString("server.p2p.mdns.rendezvous")
+	// pubsub
+	EnablePubSub = UserConfig.GetBool("server.p2p.pubsub.enable")
+	TopicName = UserConfig.GetString("server.p2p.pubsub.topic_name")
 
 }
 

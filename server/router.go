@@ -88,6 +88,16 @@ func RegisterRouter(r *gin.Engine) {
 			}
 		}
 
+		if common.P2pEnable {
+			ylog.Infof("[ROUTE]", "httpcat 开启 P2P功能")
+			// 文件操作相关接口
+			p2pRouter := apiv1Group.Group("/p2p")
+			{
+				p2pRouter.POST("/send_message", sendP2pMessage)
+				p2pRouter.POST("/get_subscribed_topics", getSubscribedTopics)
+			}
+		}
+
 	}
 
 }

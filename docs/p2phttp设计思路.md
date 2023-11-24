@@ -7,11 +7,19 @@
 
 例如，你可能有一个节点需要获取另一个节点上的某个资源。你可以简单地使用 http.Client 来发起一个GET请求，就像你请求一个普通的web服务器那样。但是，在后台，这个请求实际上会被路由到P2P网络中的正确节点。
 
-总的来说，这个代码的目的是让你能够在libp2p环境中使用熟悉的HTTP语义进行通信，而无需关心底层的P2P路由细
+总的来说，这个代码的目的是让你能够在libp2p环境中使用熟悉的HTTP语义进行通信，而无需关心底层的P2P路由细节。
 
-
+libp2p网络堆栈上层可以实现HTTP协议的传输
 ### 配置
 enableP2P 
+
+
+### 调试
+go run .\cmd\httpcat.go --port 9001 --p2pport 9002 --upload /home/web/website/download/ --download /home/web/website/download/ -C F:\open_code\httpcat\server\conf\svr.yml
+
+go run cmd/httpcat.go  --port 9001 --p2pport 9002   --static=/home/web/website/upload/  --upload=/home/web/website/upload/ --download=/home/web/website/upload/  -C server/conf/svr.yml
+go run cmd/httpcat.go  --port 9003 --p2pport 9004   --static=/home/web/website/upload/  --upload=/home/web/website/upload/ --download=/home/web/website/upload/  -C server/conf/svr.yml
+
 
 ### 节点发现
 与常规的“host:port”寻址不同，“p2phttp”使用对等ID,并让LibP2P负责路由，通过单个连接利用上多路由、NAT和流复用等功能。

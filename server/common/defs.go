@@ -30,6 +30,8 @@ var (
 	P2pListenPort      int
 	EnableMdns         bool
 	RendezvousString   string
+	EnablePubSub       bool
+	TopicName          string
 
 	StaticDir   string
 	UploadDir   string

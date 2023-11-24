@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
@@ -9,6 +10,9 @@ import (
 	"gin_web_demo/server/p2p"
 	"github.com/gin-gonic/gin"
 	"github.com/libp2p/go-libp2p"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"io"
 	"io/ioutil"
 	"log"
@@ -19,6 +23,11 @@ import (
 	"strconv"
 	"time"
 )
+
+var ps *pubsub.PubSub
+
+// 使用一个全局变量 subscribedTopics，它是一个映射（map），用于保存已加入的主题及其对应的 *pubsub.Topic 实例
+var subscribedTopics = make(map[string]*pubsub.Topic)
 
 func RunAPIServer(port int, enableSSL, enableAuth bool, certFile, keyFile string) {
 
@@ -38,10 +47,11 @@ func RunAPIServer(port int, enableSSL, enableAuth bool, certFile, keyFile string
 		// 一个连接在空闲状态下（即没有任何数据传输），可以存在的最长时间。
 		IdleTimeout: time.Duration(common.HttpIdleTimeout) * time.Second,
 	}
+	ctx := context.Background()
 
 	enableP2P := common.P2pEnable
 	if enableP2P {
-		go runP2PServer(router)
+		go runP2PServer(ctx, router)
 	}
 
 	var err error
@@ -59,13 +69,16 @@ func RunAPIServer(port int, enableSSL, enableAuth bool, certFile, keyFile string
 
 }
 
-func runP2PServer(router *gin.Engine) {
+func runP2PServer(ctx context.Context, router *gin.Engine) {
 
 	// To construct a simple host with all the default settings, just use `New`
 	ip := common.P2pListenIP
 	port := common.P2pListenPort
 	listenAddr := fmt.Sprintf("/ip4/%s/tcp/%d", ip, port)
+
+	fmt.Printf("[*] Listening on: %s with port: %d\n", ip, port)
 	fmt.Println("p2p listenAddr:", listenAddr)
+
 	h, err := libp2p.New(
 		libp2p.ListenAddrStrings(
 			listenAddr, // "/ip4/0.0.0.0/tcp/9000", // regular tcp connections
@@ -79,26 +92,115 @@ func runP2PServer(router *gin.Engine) {
 	defer h.Close()
 
 	fmt.Printf("Hello World, my p2p hosts ID is %s\n", h.ID())
+	// 节点发现
+	go discoverPeers(ctx, h)
 
-	// 设置mDNS服务
-	if common.EnableMdns {
-		fmt.Printf("hosts ID is %s enable MDNS for discory node!\n", h.ID())
-		peerChan := p2p.InitMDNS(h, common.RendezvousString)
-		for { // allows multiple peers to join
-			peer := <-peerChan // will block until we discover a peer
-			//fmt.Println("Found peer:", peer, ", connecting")
-			fmt.Println("Found peer:")
-			fmt.Println("ID:", peer.ID)
-			fmt.Println("Address:", peer.Addrs[0].String())
-			for _, addr := range peer.Addrs {
-				fmt.Println("Address:", addr.String())
+	// PubSub
+	ps, _ = pubsub.NewGossipSub(ctx, h)
+	ylog.Infof("runP2PServer", "join topic: %v", common.TopicName)
+	topic, _ := ps.Join(common.TopicName)
+	subscription, _ := topic.Subscribe()
+	ylog.Infof("runP2PServer", "subscribed topic: %v", common.TopicName)
+
+	// 在 libp2p 的 pubsub 模型中，不支持直接获取当前节点已订阅的主题列表
+	// 自己维护一个主题列表。每当节点加入一个主题时，将其添加到该列表中
+	// 将主题添加到已订阅的主题列表
+	// 将主题添加到已订阅的主题列表
+	subscribedTopics[common.TopicName] = topic
+
+	go func() {
+		for {
+			msg, err := subscription.Next(ctx)
+			if err != nil {
+				// handle error
+				break
 			}
-
+			fmt.Printf("Received message: %s\n", string(msg.Data))
 		}
-		// todo 发现节点TODO 工作
+	}()
 
+	// 等待上下文取消信号
+	<-ctx.Done()
+	fmt.Println("P2P server stopped")
+}
+
+func publishMessage(c *gin.Context, topicName string, message string) {
+
+	// 检查是否已经加入主题
+	topic, exists := subscribedTopics[topicName]
+	if !exists {
+		// 加入主题
+		var err error
+		// 经过测试，在 libp2p 的 pubsub 模型中，当您重复调用 Join 方法加入相同的主题时，会报错：topic already exists
+		topic, err = ps.Join(topicName)
+		if err != nil {
+			// 处理错误
+			ylog.Errorf("publishMessage", "Failed to join the topic, err:%v", err)
+			common.CreateResponse(c, common.ErrorCode, "Failed to join the topic")
+			return
+		}
+
+		// 将主题添加到已订阅的主题列表
+		subscribedTopics[topicName] = topic
 	}
 
+	// 发布消息到主题
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := topic.Publish(ctx, []byte(message))
+	if err != nil {
+		// handle error
+		common.CreateResponse(c, common.ErrorCode, "Failed to publish the message")
+		return
+	}
+
+	common.CreateResponse(c, common.SuccessCode, "Message sent to topic: "+topicName)
+
+}
+
+func getSubscribedTopics(c *gin.Context) {
+
+	common.CreateResponse(c, common.SuccessCode, subscribedTopics)
+	return
+}
+
+func discoverPeers(ctx context.Context, h host.Host) {
+	if common.EnableMdns {
+		fmt.Printf("Host ID is %s. Enabling MDNS for discovering nodes!\n", h.ID())
+
+		peerChan := p2p.InitMDNS(h, common.RendezvousString)
+
+		// 维护一个连接的节点列表
+		connectedPeers := map[peer.ID]bool{}
+
+		// Look for others who have announced and attempt to connect to them
+		for {
+			peer := <-peerChan // will block until we discover a peer
+			if peer.ID == h.ID() {
+				continue // No self connection
+			}
+
+			fmt.Println("Found peer:")
+			fmt.Println("ID:", peer.ID)
+
+			if _, ok := connectedPeers[peer.ID]; !ok {
+				if err := h.Connect(ctx, peer); err != nil {
+					fmt.Println("Connection failed:", err)
+					continue
+				}
+
+				// 添加到已连接节点列表
+				connectedPeers[peer.ID] = true
+
+				// 打印已连接的节点
+				fmt.Println("Connected to:", peer.ID)
+				fmt.Println("Connected peers:")
+				for connectedPeer := range connectedPeers {
+					fmt.Println("- ", connectedPeer)
+				}
+			}
+		}
+	}
 }
 
 func getDirConf(c *gin.Context) {
@@ -307,4 +409,30 @@ func fileInfo(c *gin.Context) {
 
 	// 返回文件信息
 	common.CreateResponse(c, common.SuccessCode, fileEntry)
+}
+
+func sendP2pMessage(c *gin.Context) {
+	// 定义结构体用于解析 JSON 数据
+	type MessageData struct {
+		Topic   string `json:"topic"`
+		Message string `json:"message"`
+	}
+
+	var data MessageData
+
+	// 解析 JSON 数据到结构体
+	if err := c.ShouldBindJSON(&data); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid JSON data",
+		})
+		return
+	}
+
+	// 获取主题和消息内容
+	topic := data.Topic
+	message := data.Message
+
+	// Publish a message to the topic
+	publishMessage(c, topic, message)
+
 }

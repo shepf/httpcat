@@ -29,11 +29,15 @@ server:
   p2p:
     enable: true
     listen:
+      # 在实际生产环境中，通常会更倾向于明确指定要监听的IP地址和端口，以确保安全性和精确控制网络流量的流向。
       ip: 0.0.0.0 # 如果p2p监听ip 0.0.0.0，所有的接口ip都会广播，其他节点可能会看到很多ip；建议修改为本地具体ip，这样其他节点发现该节点时，就只有这个ip，会比较清晰
       port: 9000
     mdns:
       enable: true
       rendezvous: "httpcat" # Unique string to identify group of nodes. Share this with your friends to let them connect with you
+    pubsub:
+      enable: true
+      topic_name: "httpcat" # TopicName to subscribe to. Share this with your friends to let them connect with you
 
 
 

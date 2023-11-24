@@ -27,7 +27,7 @@ vi ./conf/svr.yml
 
 linux下运行:
 ```bash
-./httpcat -c conf/svr.yml
+./httpcat -C conf/svr.yml
 ```
 
 windows下运行:
