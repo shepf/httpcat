@@ -83,7 +83,8 @@ ExecStart=/usr/local/bin/httpcat  --static=/home/web/website/upload/  --upload=/
 
 
 ## ❤使用技巧
-### 使用curl工具上传文件
+### 文件操作相关接口
+#### 使用curl工具上传文件
 ```bash
 curl -vF "f1=@/root/hello.mojo" http://localhost:8888/api/v1/file/upload
 ```
@@ -96,8 +97,8 @@ curl -vF "f1=@/root/hello.mojo" http://localhost:8888/api/v1/file/upload
 > 注意： f1 为服务端代码定义的，修改为其他，如file，会报错上传失败。
 
 
-### 下载文件
-#### api 接口
+#### 下载文件
+##### api 接口
 查看下载根目录下，某个目录的文件列表
 `http://127.0.0.1:8888/api/v1/file/listFiles?dir=
 `
@@ -107,6 +108,17 @@ curl -vF "f1=@/root/hello.mojo" http://localhost:8888/api/v1/file/upload
 获取某个文件的信息，包括md5
 `http://{{ip}}:{{port}}/api/v1/file/fileInfo?name=FlF9mrjXgAAZHon.jpg
 `
+
+### p2p相关接口
+需要配置文件开启p2p功能，默认关闭
+
+#### 通过http接口向p2p网络发送消息
+http://{{ip}}:{{port}}/api/v1/p2p/send_message
+POST
+{
+"topic": "httpcat",
+"message": "ceshi cccccccccccc"
+}
 
 ## 💪TODO
 1. 接口增加签名认证机制
