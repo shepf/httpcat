@@ -91,7 +91,8 @@ func runP2PServer(ctx context.Context, router *gin.Engine) {
 	}
 	defer h.Close()
 
-	fmt.Printf("Hello World, my p2p hosts ID is %s\n", h.ID())
+	fmt.Printf("\033[32mHello World, my p2p hosts ID is %s\033[0m\n", h.ID())
+
 	// 节点发现
 	go discoverPeers(ctx, h)
 
@@ -115,7 +116,8 @@ func runP2PServer(ctx context.Context, router *gin.Engine) {
 				// handle error
 				break
 			}
-			fmt.Printf("Received message: %s\n", string(msg.Data))
+			fmt.Printf("Received message from %s: %s\n", msg.GetFrom(), string(msg.GetData()))
+
 		}
 	}()
 
@@ -183,6 +185,7 @@ func discoverPeers(ctx context.Context, h host.Host) {
 			fmt.Println("Found peer:")
 			fmt.Println("ID:", peer.ID)
 
+			// 获取节点的地址
 			if _, ok := connectedPeers[peer.ID]; !ok {
 				if err := h.Connect(ctx, peer); err != nil {
 					fmt.Println("Connection failed:", err)

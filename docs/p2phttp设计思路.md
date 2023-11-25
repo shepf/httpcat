@@ -24,3 +24,10 @@ go run cmd/httpcat.go  --port 9003 --p2pport 9004   --static=/home/web/website/u
 ### 节点发现
 与常规的“host:port”寻址不同，“p2phttp”使用对等ID,并让LibP2P负责路由，通过单个连接利用上多路由、NAT和流复用等功能。
 
+### web接口
+http://{{ip}}:{{port}}/api/v1/p2p/send_message
+POST
+{
+"topic": "httpcat",
+"message": "ceshi cccccccccccc"
+}
