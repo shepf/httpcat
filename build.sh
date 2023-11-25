@@ -13,7 +13,7 @@ go mod tidy
 # Build for Linux
 echo "Building for Linux"
 
-HTTPCAT_VERSION=v0.0.2
+HTTPCAT_VERSION=v0.0.3
 HTTPCAT_BUILD=$(date "+%Y%m%d%H%M")
 GOOS=linux GOARCH=amd64 go build \
  -ldflags "-s -w" \
