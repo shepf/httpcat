@@ -25,6 +25,16 @@ server:
       enable: false
     file:
       enable: true
+      enable_upload_token: true # 是否开启上传专用token验证，开启后支持上传策略upload_policy配置生效
+      app_key: "httpcat" # 上传授权的app_key
+      app_secret: "httpcat_app_secret" # 上传授权的app_secret
+      upload_policy:
+        deadline: 7200 # 上传策略有效期，单位秒
+        fsizemin: 0 # 上传文件最小值，单位字节
+        fsizeLimit: 0 # 上传文件最大值，单位字节
+        persistentOps: "" # 上传成功后，触发执行的预转持久化处理指令列表，多个指令用;分隔，例如生成文件md5值。
+#        persistent_notify_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=1111507-2341-22425-11-4321114236" # 当持久化处理任务完成时，系统会向设置的 persistentNotifyUrl 发送 POST 请求，通知处理结果。您可以将实际的通知 URL 替换成您的有效 URL，以便接收通知。
+        persistent_notify_url: "" # 留空“” 不通知，当持久化处理任务完成时，系统会向设置的 persistentNotifyUrl 发送 POST 请求，通知处理结果。
 
   p2p:
     enable: false

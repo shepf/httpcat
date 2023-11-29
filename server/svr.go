@@ -6,8 +6,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"gin_web_demo/server/common"
+	"gin_web_demo/server/common/utils"
 	"gin_web_demo/server/common/ylog"
 	"gin_web_demo/server/p2p"
+	"gin_web_demo/server/storage"
+	"gin_web_demo/server/storage/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -224,6 +227,25 @@ func uploadFile(c *gin.Context) {
 		c.String(http.StatusBadRequest, "Bad request")
 		return
 	}
+
+	// 判断是否开启了UploadToken校验
+	if common.EnableUploadToken {
+		uploadToken := c.Request.Header.Get("UploadToken")
+		if uploadToken == "" {
+			common.CreateResponse(c, common.ErrorCode, "UploadToken is empty")
+			return
+		}
+		// 校验UploadToken
+		accessKey := common.AppKey
+		secretKey := common.AppSecret
+		mac := auth.New(accessKey, secretKey)
+
+		if !mac.VerifyUploadToken(uploadToken) {
+			common.CreateResponse(c, common.ErrorCode, "UploadToken is invalid")
+			return
+		}
+	}
+
 	// header调用Filename方法，就可以得到文件名
 	filename := header.Filename
 	fmt.Println(file, err, filename)
@@ -235,13 +257,38 @@ func uploadFile(c *gin.Context) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	defer out.Close()
 
 	// 将file的内容拷贝到out
 	_, err = io.Copy(out, file)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	fmt.Println("PersistentNotifyURL:", common.PersistentNotifyURL)
+	// 上传成功后，发送通知
+	if common.PersistentNotifyURL != "" {
+
+		ylog.Infof("uploadFile", "send notify to: %s", common.PersistentNotifyURL)
+		// 构建 Markdown 通知内容
+		ip := c.ClientIP()
+		uploadTime := time.Now().Format("2006-01-02 15:04:05")
+		filename := header.Filename
+		// 获取文件信息
+		fileInfo, _ := os.Stat(filePath)
+		fileSize := formatSize(fileInfo.Size())
+		fileMD5, _ := utils.CalculateMD5(filePath)
+
+		markdownContent := fmt.Sprintf(`>有文件上传归档,上传信息：
+			- IP地址：%s
+			- 上传时间：%s
+			- 文件名：%s
+			- 文件大小：%s
+			- 文件MD5：%s`, ip, uploadTime, filename, fileSize, fileMD5)
+		ylog.Infof("uploadFile", "markdownContent:%s", markdownContent)
+
+		go utils.SendNotify(common.PersistentNotifyURL, markdownContent)
+
 	}
 
 	common.CreateResponse(c, common.SuccessCode, "upload successful!")
@@ -437,5 +484,51 @@ func sendP2pMessage(c *gin.Context) {
 
 	// Publish a message to the topic
 	publishMessage(c, topic, message)
+
+}
+
+func createUploadToken(c *gin.Context) {
+	// 定义结构体用于解析 JSON 数据
+	type MessageData struct {
+		AccessKey string `json:"accessKey"`
+		SecretKey string `json:"secretKey"`
+	}
+
+	var data MessageData
+
+	// 解析 JSON 数据到结构体
+	if err := c.ShouldBindJSON(&data); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid JSON data",
+		})
+		return
+	}
+
+	// 获取主题和消息内容
+	accessKey := data.AccessKey
+	secretKey := data.SecretKey
+
+	p := storage.UploadPolicy{}
+	mac := auth.New(accessKey, secretKey)
+	token := p.UploadToken(mac)
+
+	common.CreateResponse(c, common.SuccessCode, token)
+}
+
+func checkUploadToken(c *gin.Context) {
+	// 获取请求头中的UploadToken
+	uploadToken := c.Request.Header.Get("UploadToken")
+
+	// 校验UploadToken
+	accessKey := common.AppKey
+	secretKey := common.AppSecret
+	mac := auth.New(accessKey, secretKey)
+
+	if !mac.VerifyUploadToken(uploadToken) {
+		common.CreateResponse(c, common.ErrorCode, "UploadToken is invalid")
+		return
+	}
+
+	common.CreateResponse(c, common.SuccessCode, "UploadToken is valid")
 
 }

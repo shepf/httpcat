@@ -57,16 +57,19 @@ func RegisterRouter(r *gin.Engine) {
 		//apiv1Group.Use(midware.RBACAuth())
 
 		//用户操作相关接口
-		//userRouter := apiv1Group.Group("/user")
-		//{
-		//	userRouter.POST("/login", v1.UserLogin)
-		//	userRouter.GET("/logout", v1.UserLoginout)
-		//	userRouter.POST("/del", v1.DelUser)
-		//	userRouter.GET("/info", v1.UserInfo)
-		//	userRouter.POST("/update", v1.UpdateUser)
-		//	userRouter.POST("/resetPassword", v1.ResetPassword)
-		//	userRouter.POST("/checkUser", v1.CheckPassword)
-		//}
+		userRouter := apiv1Group.Group("/user")
+		{
+			//	userRouter.POST("/login", v1.UserLogin)
+			//	userRouter.GET("/logout", v1.UserLoginout)
+			//	userRouter.POST("/del", v1.DelUser)
+			//	userRouter.GET("/info", v1.UserInfo)
+			//	userRouter.POST("/update", v1.UpdateUser)
+			//	userRouter.POST("/resetPassword", v1.ResetPassword)
+			//	userRouter.POST("/checkUser", v1.CheckPassword)
+			userRouter.POST("/createUploadToken", createUploadToken)
+			userRouter.POST("/checkUploadToken", checkUploadToken)
+
+		}
 
 		if common.FileEnable {
 			ylog.Infof("[ROUTE]", "httpcat 开启 文件上传下载功能")

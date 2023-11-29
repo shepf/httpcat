@@ -64,6 +64,10 @@ func initDefault() {
 
 	// for 业务
 	FileEnable = UserConfig.GetBool("server.http.file.enable")
+	EnableUploadToken = UserConfig.GetBool("server.http.file.enable_upload_token")
+	AppKey = UserConfig.GetString("server.http.file.app_key")
+	AppSecret = UserConfig.GetString("server.http.file.app_secret")
+	PersistentNotifyURL = UserConfig.GetString("server.http.file.upload_policy.persistent_notify_url")
 
 	// for p2p
 	P2pEnable = UserConfig.GetBool("server.p2p.enable")
