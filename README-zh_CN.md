@@ -119,7 +119,7 @@ POST
 curl -v -F "f1=@/root/hello.mojo" -H "UploadToken: httpcat:bbE8NVvimYNbV-CaJ9EFMKg3YaM=:eyJkZWFkbGluZSI6M15=" http://localhost:8888/api/v1/file/upload
 
 #### 上传文件企业微信webhook通知
-
+配置svr.yml文件中的persistent_notify_url，上传成功后，会发送企业微信通知。
 
 通知信息如下：
 ```
