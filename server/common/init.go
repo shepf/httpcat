@@ -68,6 +68,8 @@ func initDefault() {
 	AppKey = UserConfig.GetString("server.http.file.app_key")
 	AppSecret = UserConfig.GetString("server.http.file.app_secret")
 	PersistentNotifyURL = UserConfig.GetString("server.http.file.upload_policy.persistent_notify_url")
+	EnableSqlite = UserConfig.GetBool("server.http.file.enable_sqlite")
+	SqliteDBPath = UserConfig.GetString("server.http.file.sqlite_db_path")
 
 	// for p2p
 	P2pEnable = UserConfig.GetBool("server.p2p.enable")

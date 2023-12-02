@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/md5"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"gin_web_demo/server/common"
@@ -25,6 +26,8 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var ps *pubsub.PubSub
@@ -224,7 +227,7 @@ func uploadFile(c *gin.Context) {
 	// FormFile方法会读取参数“upload”后面的文件名，返回值是一个File指针，和一个FileHeader指针，和一个err错误。
 	file, header, err := c.Request.FormFile("f1")
 	if err != nil {
-		c.String(http.StatusBadRequest, "Bad request")
+		c.String(http.StatusBadRequest, "Bad request,check your file~")
 		return
 	}
 
@@ -265,33 +268,79 @@ func uploadFile(c *gin.Context) {
 		log.Fatal(err)
 	}
 
+	Ip := c.ClientIP()
+	uploadTime := time.Now().Format("2006-01-02 15:04:05")
+	// 获取文件信息
+	fileInfo, _ := os.Stat(filePath)
+	fileSize := formatSize(fileInfo.Size())
+	fileMD5, _ := utils.CalculateMD5(filePath)
+
 	fmt.Println("PersistentNotifyURL:", common.PersistentNotifyURL)
 	// 上传成功后，发送通知
 	if common.PersistentNotifyURL != "" {
 
 		ylog.Infof("uploadFile", "send notify to: %s", common.PersistentNotifyURL)
 		// 构建 Markdown 通知内容
-		ip := c.ClientIP()
-		uploadTime := time.Now().Format("2006-01-02 15:04:05")
-		filename := header.Filename
-		// 获取文件信息
-		fileInfo, _ := os.Stat(filePath)
-		fileSize := formatSize(fileInfo.Size())
-		fileMD5, _ := utils.CalculateMD5(filePath)
 
 		markdownContent := fmt.Sprintf(`>有文件上传归档,上传信息：
 			- IP地址：%s
 			- 上传时间：%s
 			- 文件名：%s
 			- 文件大小：%s
-			- 文件MD5：%s`, ip, uploadTime, filename, fileSize, fileMD5)
+			- 文件MD5：%s`, Ip, uploadTime, filename, fileSize, fileMD5)
 		ylog.Infof("uploadFile", "markdownContent:%s", markdownContent)
 
 		go utils.SendNotify(common.PersistentNotifyURL, markdownContent)
+	}
 
+	// 是否sqlite记录
+	if common.EnableSqlite {
+		ylog.Infof("uploadFile", "sqliteInsert enable")
+		go sqliteInsert(Ip, uploadTime, filename, fileSize, fileMD5)
 	}
 
 	common.CreateResponse(c, common.SuccessCode, "upload successful!")
+}
+
+func sqliteInsert(Ip string, uploadTime string, filename string, fileSize string, fileMD5 string) {
+	ylog.Infof("uploadFile", "sqliteInsert start")
+
+	// 读取 SQLite 数据库文件路径配置项
+	dbPath := common.SqliteDBPath
+
+	// 打开 SQLite 数据库连接
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		ylog.Errorf("uploadFile", "open db failed, err:%v", err)
+		return
+	}
+	defer db.Close()
+
+	// 创建 notifications 表（如果不存在）
+	_, err = db.Exec(`
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip TEXT,
+            upload_time TEXT,
+            filename TEXT,
+            file_size TEXT,
+            file_md5 TEXT
+        );
+    `)
+	if err != nil {
+		ylog.Errorf("uploadFile", "create table failed, err:%v", err)
+		return
+	}
+
+	// 将通知信息插入到 SQLite 数据库中
+	_, err = db.Exec("INSERT INTO notifications (ip, upload_time, filename, file_size, file_md5) VALUES (?, ?, ?, ?, ?)",
+		Ip, uploadTime, filename, fileSize, fileMD5)
+	if err != nil {
+		ylog.Errorf("uploadFile", "insert into db failed, err:%v", err)
+		return
+	}
+
+	ylog.Infof("uploadFile", "sqliteInsert end")
 }
 
 func downloadFile(c *gin.Context) {

@@ -41,6 +41,8 @@ var (
 	AppKey              string
 	AppSecret           string
 	PersistentNotifyURL string
+	EnableSqlite        bool
+	SqliteDBPath        string
 
 	PProfEnable bool
 	PProfPort   int //pprof

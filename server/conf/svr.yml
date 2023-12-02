@@ -35,6 +35,9 @@ server:
         persistentOps: "" # 上传成功后，触发执行的预转持久化处理指令列表，多个指令用;分隔，例如生成文件md5值。
 #        persistent_notify_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=1111507-2341-22425-11-4321114236" # 当持久化处理任务完成时，系统会向设置的 persistentNotifyUrl 发送 POST 请求，通知处理结果。您可以将实际的通知 URL 替换成您的有效 URL，以便接收通知。
         persistent_notify_url: "" # 留空“” 不通知，当持久化处理任务完成时，系统会向设置的 persistentNotifyUrl 发送 POST 请求，通知处理结果。
+      enable_sqlite: true # 是否开启SQLite数据库存储上传日志
+      sqlite_db_path: "./data/sqlite.db" # SQLite数据库存储路径
+
 
   p2p:
     enable: false
