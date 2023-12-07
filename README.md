@@ -75,8 +75,8 @@ systemctl daemon-reload
 systemctl start httpcat
 ```
 
-> Note: You may need to modify the startup parameters according to your needs. 
-> Ensure that the following three directories are consistent (so that the upload directory is also the download directory, 
+> Note: You may need to modify the startup parameters according to your needs.
+> Ensure that the following three directories are consistent (so that the upload directory is also the download directory,
 > and it is also the web frontend directory where files can be downloaded without authentication).
 
 ```bash
@@ -114,7 +114,7 @@ POST
 "accessKey": "httpcat",
 "secretKey": "httpcat_app_secret"
 }
-例如返回：
+response：
 {
 "code": 0,
 "msg": "success",
@@ -163,8 +163,8 @@ SELECT * FROM notifications;
 ```
 
 
-#### 下载文件
-##### api 接口
+#### download file
+##### api interface
 View the list of files in a specific directory within the download root.
 `http://127.0.0.1:8888/api/v1/file/listFiles?dir=
 `
