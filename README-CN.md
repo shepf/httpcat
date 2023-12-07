@@ -10,10 +10,7 @@ HttpCat 是一个基于go实现的 HTTP 的文件传输服务，旨在提供简�
 * 简单易用
 * 无需外部依赖，易于移植
 
-## 🎉安装 
-下载：
-
-
+## 🎉安装
 解压到httpcat目录:
 ```bash
 tar -zxvf httpcat_*.tar.gz -C httpcat
@@ -73,7 +70,9 @@ cp  httpcat.service /usr/lib/systemd/system/httpcat.service
 systemctl daemon-reload
 systemctl start httpcat
 ```
-注意：你可能需要根据你的需要修改启动参数,如下 3个目录一致:
+
+> 注意：根据你的业务需要修改启动参数
+> 比如：一个最简单的应用场景：3个目录一致(则上传目录就是下载目录，并且也是web前端目录，可以无认证直接下载):
 ```bash
 vi httpcat.service
 ```
@@ -98,8 +97,9 @@ curl -vF "f1=@/root/hello.mojo" http://localhost:8888/api/v1/file/upload
 
 
 #### 上传文件认证
-如果配置文件开启了 enableUploadToken，那么上传文件需要认证，需要在请求头中添加token，token的值为配置文件中的uploadToken值。
-根据ak、sk生成独立的上传token凭证,上传文件时候，附带token，服务端会校验token是否合法。
+如果配置文件开启了 `enable_upload_token`，那么上传文件需要认证，需要在请求头中添加token，token的值为配置文件中的`enable_upload_token`值。
+根据app_key、app_secret生成独立的上传token凭证。上传文件时候，附带token，服务端会校验token是否合法。
+
 
 http://{{ip}}:{{port}}/api/v1/user/createUploadToken
 POST
@@ -115,11 +115,13 @@ POST
 }
 
 
-您可以使用 -H 选项在 cURL 命令中添加自定义的 HTTP 头部
+You can use the -H option to add custom HTTP headers in the cURL command.
+```bash
 curl -v -F "f1=@/root/hello.mojo" -H "UploadToken: httpcat:bbE8NVvimYNbV-CaJ9EFMKg3YaM=:eyJkZWFkbGluZSI6M15=" http://localhost:8888/api/v1/file/upload
+```
 
 #### 上传文件企业微信webhook通知
-配置svr.yml文件中的persistent_notify_url，上传成功后，会发送企业微信通知。
+配置svr.yml文件中的`persistent_notify_url`，上传成功后，会发送企业微信通知。
 
 通知信息如下：
 ```
@@ -146,7 +148,7 @@ sqlite3 --version
 sqlite3 sqlite.db
 ```
 
-在 sqlite3 提示符下，输入 .tables 命令来列出数据库中的所有表：
+在 sqlite3 提示符下，输入 `.tables` 命令来列出数据库中的所有表：
 ```bash
 .tables
 ```
@@ -154,8 +156,6 @@ sqlite3 sqlite.db
 ```bash
 SELECT * FROM notifications;
 ```
-
-
 
 #### 下载文件
 ##### api 接口
@@ -181,11 +181,9 @@ POST
 }
 
 ## 💪TODO
-1. 接口增加签名认证机制
-   将请求方法、URL、查询字符串、访问密钥、时间戳、请求体的哈希值等信息按照一定规则拼接起来，并使用给定的密钥进行签名计算。
-   生成的签名用于在请求头部或其他方式中进行身份验证或安全控制。
-2. 支持p2p环境下http使用
-3. https支持
+1. HTTPS support
+2. Internationalization
 
 
-欢迎提issue~ Good luck 🍀
+Feel free to raise an issue. Good luck! 🍀
+

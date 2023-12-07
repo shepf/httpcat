@@ -10,9 +10,9 @@ import (
 
 func init() {
 	// 结尾的Var表示支持将参数的值，绑定到变量
-	pflag.StringVar(&StaticDir, "static", "./website/static/", "指定静态资源路径(web)")
-	pflag.StringVar(&UploadDir, "upload", "./website/upload/", "指定上传文件的路径,右斜线结尾")
-	pflag.StringVar(&DownloadDir, "download", "./website/download/", "指定下载文件的路径,右斜线结尾")
+	pflag.StringVar(&StaticDir, "static", "./website/static/", "Specify the path for static resources (web), ending with a forward slash (/)")
+	pflag.StringVar(&UploadDir, "upload", "./website/upload/", "Specify the path for uploading files, ending with a forward slash (/)")
+	pflag.StringVar(&DownloadDir, "download", "./website/download/", "Specify the path for downloading files, ending with a forward slash (/)")
 
 	// 结尾的P表示支持短选项
 	pflag.IntVarP(&HttpPort, "port", "P", 0, "host port.")
