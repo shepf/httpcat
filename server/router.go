@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gin_web_demo/server/common"
 	"gin_web_demo/server/common/ylog"
+	v1 "gin_web_demo/server/handler/v1"
 	"gin_web_demo/server/midware"
 	"net/http"
 	"strings"
@@ -52,7 +53,7 @@ func RegisterRouter(r *gin.Engine) {
 		//用户操作相关接口
 		userRouter := apiv1Group.Group("/user")
 		{
-			//	userRouter.POST("/login", v1.UserLogin)
+			userRouter.POST("/login/account", v1.UserLogin)
 			//	userRouter.GET("/logout", v1.UserLoginout)
 			//	userRouter.POST("/del", v1.DelUser)
 			//	userRouter.GET("/info", v1.UserInfo)

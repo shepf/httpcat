@@ -21,6 +21,7 @@ var (
 	SSLRawDataKeyFile  string
 	SSLRawDataCertFile string
 	SSLCaFile          string
+	JwtSecret          string
 	HttpAuthEnable     bool
 	HttpAkSkMap        map[string]string //access key and secret key list, which used to identify whether the http request comes from a known subject
 	SvrAK              string            // access key, which use for http sign
