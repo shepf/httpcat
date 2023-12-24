@@ -13,18 +13,19 @@ go mod tidy
 # Build for Linux
 echo "Building for Linux"
 
-HTTPCAT_VERSION=v0.0.5
+HTTPCAT_VERSION=v0.0.6
 HTTPCAT_BUILD=$(date "+%Y%m%d%H%M")
+COMMIT_ID=$(git rev-parse HEAD)
 GOOS=linux GOARCH=amd64 go build \
  -ldflags "-s -w" \
- -ldflags "-X gin_web_demo/server.Version=$HTTPCAT_VERSION -X gin_web_demo/server.Build=$HTTPCAT_BUILD" \
+ -ldflags "-X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
  -o ./release/httpcat ./cmd/httpcat.go
 
 # Build for Windows
 echo "Building for Windows"
 GOOS=windows GOARCH=amd64 go build \
  -ldflags "-s -w" \
- -ldflags "-X gin_web_demo.server.Version=$HTTPCAT_VERSION -X gin_web_demo.server.Build=$HTTPCAT_BUILD" \
+ -ldflags "-X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
  -o ./release/httpcat.exe ./cmd/httpcat.go
 
 

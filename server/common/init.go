@@ -8,6 +8,13 @@ import (
 	"os"
 )
 
+var (
+	Version string
+	Commit  string
+	Build   string
+	CI      string
+)
+
 func init() {
 	// 结尾的Var表示支持将参数的值，绑定到变量
 	pflag.StringVar(&StaticDir, "static", "./website/static/", "Specify the path for static resources (web), ending with a forward slash (/)")
@@ -19,9 +26,18 @@ func init() {
 	pflag.IntVar(&P2pListenPort, "p2pport", 0, "p2p host port.")
 	// 结尾的P表示支持短选项
 	confPath := pflag.StringP("config", "C", "./conf/svr.yml", "ConfigPath")
+	showVersion := pflag.BoolP("version", "v", false, "Show the version number")
 
 	pflag.Parse()
 	ConfPath = *confPath
+
+	if *showVersion {
+		fmt.Println("Version: ", Version) // 替换为实际的版本号
+		fmt.Println("Build time: ", Build)
+		fmt.Println("Commit id: ", Commit)
+
+		os.Exit(0)
+	}
 
 	initConfig()
 }

@@ -11,13 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var (
-	Version string
-	Commit  string
-	Build   string
-	CI      string
-)
-
 func registerForFrontEnd(router *gin.Engine) {
 	//定义根路径路由,显示首页
 	router.GET("/", func(c *gin.Context) {
@@ -36,10 +29,10 @@ func RegisterRouter(r *gin.Engine) {
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"commit":  Commit,
-			"build":   Build,
-			"version": Version,
-			"ci":      CI,
+			"commit":  common.Commit,
+			"build":   common.Build,
+			"version": common.Version,
+			"ci":      common.CI,
 		})
 	})
 

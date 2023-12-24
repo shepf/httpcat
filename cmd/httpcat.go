@@ -17,10 +17,10 @@ func init() {
 func main() {
 	ylog.Infof("[MAIN]", "START_SERVER")
 
-	fmt.Printf("Version: %s\n", server.Version)
-	fmt.Printf("Commit: %s\n", server.Commit)
-	fmt.Printf("Build: %s\n", server.Build)
-	fmt.Printf("CI: %s\n", server.CI)
+	fmt.Printf("Version: %s\n", common.Version)
+	fmt.Printf("Commit: %s\n", common.Commit)
+	fmt.Printf("Build: %s\n", common.Build)
+	fmt.Printf("CI: %s\n", common.CI)
 
 	go server.RunAPIServer(common.HttpPort, common.HttpSSLEnable, common.HttpAuthEnable, common.SSLCertFile, common.SSLKeyFile)
 
