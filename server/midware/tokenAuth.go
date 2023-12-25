@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"gin_web_demo/server/common"
 	"gin_web_demo/server/common/ylog"
-	"gin_web_demo/server/internal/login"
 	"github.com/golang-jwt/jwt"
 	"github.com/rs/xid"
 	"io"
@@ -80,9 +79,10 @@ func GenPassword(password, salt string) string {
 	return fmt.Sprintf("%x", t.Sum(nil))
 }
 
-func CheckUser(username, password string) (*login.User, error) {
-	u := login.GetUser(username)
+func CheckUser(username, password string) (*common.User, error) {
+	u := common.GetUser(username)
 	if u == nil {
+		ylog.Errorf("CheckUser", "user not found")
 		return nil, errors.New("user not found")
 	}
 

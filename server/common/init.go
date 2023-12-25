@@ -1,12 +1,12 @@
 package common
 
 import (
-	"database/sql"
 	"fmt"
 	"gin_web_demo/server/common/userconfig"
 	"gin_web_demo/server/common/ylog"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/pflag"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"os"
 	"path/filepath"
 )
@@ -150,116 +150,29 @@ func initDB() {
 		}
 
 		// 打开 SQLite 数据库连接
-		db, err := sql.Open("sqlite3", dbPath)
+		db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 		if err != nil {
-			ylog.Errorf("uploadFile", "open db failed, err:%v", err)
+			ylog.Errorf("initDB", "open db failed, err:%v", err)
 			return
 		}
-		defer db.Close()
 
-		// 创建 notifications 表（如果不存在）
-		_, err = db.Exec(`
-        CREATE TABLE IF NOT EXISTS notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ip TEXT,
-            upload_time TEXT,
-            filename TEXT,
-            file_size TEXT,
-            file_md5 TEXT
-        );
-    `)
+		type Notification struct {
+			ID         uint   `gorm:"column:id;primary_key"`
+			IP         string `gorm:"column:ip"`
+			UploadTime string `gorm:"column:upload_time"`
+			Filename   string `gorm:"column:filename"`
+			FileSize   string `gorm:"column:file_size"`
+			FileMD5    string `gorm:"column:file_md5"`
+		}
+		db.AutoMigrate(&Notification{})
 		if err != nil {
 			ylog.Errorf("initDB", "create notifications table failed, err:%v", err)
 			return
 		}
-
 		// 创建 users 表（如果不存在）
-		// 创建用户表
-		_, err = db.Exec(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT,
-            avatar TEXT,
-            userid TEXT,
-            email TEXT,
-            signature TEXT,
-            title TEXT,
-            "group" TEXT,
-            tags BLOB,
-            notify_count INTEGER,
-            unread_count INTEGER,
-            country TEXT,
-            access BLOB,
-            province BLOB,
-            city BLOB,
-            address TEXT,
-            phone TEXT,
-            password TEXT,
-            password_update_time INTEGER,
-            salt TEXT,
-            "level" INTEGER,
-            config BLOB
-        );
-    `)
-		if err != nil {
-			ylog.Errorf("initDB", "create users table failed, err:%v", err)
-			return
-		}
-
-		// 插入默认记录
-		_, err = db.Exec(`
-		INSERT INTO users (
-			username,
-			avatar,
-			userid,
-			email,
-			signature,
-			title,
-			"group",
-			tags,
-			notify_count,
-			unread_count,
-			country,
-			access,
-			province,
-			city,
-			address,
-			phone,
-			password,
-			password_update_time,
-			salt,
-			"level",
-			config
-		)
-		VALUES (
-			'admin',
-			'',
-			'defaultuser',
-			'',
-			'',
-			'',
-			'defaultgroup',
-			null,
-			0,
-			0,
-			'',
-			null,
-			null,
-			null,
-			'',
-			'',
-			'admin',
-			0,
-			'salt_httpcat',
-			0,
-			null
-		);
-	`)
-
-		if err != nil {
-			ylog.Errorf("initDB", "insert default record failed, err:%v", err)
-			return
-		}
+		InitializeUserTable(db)
+		// 加载用户到缓存
+		InitUser()
 
 		ylog.Infof("initDB", "init end~")
 	}
