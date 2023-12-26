@@ -6,6 +6,7 @@ import (
 	"gin_web_demo/server/midware"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"net/http"
 )
 
 type AuthRequest struct {
@@ -37,7 +38,12 @@ func UserLogin(c *gin.Context) {
 			common.CreateResponse(c, common.AuthFailedErrorCode, err.Error())
 			return
 		}
-		common.CreateResponse(c, common.SuccessCode, map[string]interface{}{"token": token})
+
+		c.JSON(
+			http.StatusOK,
+			bson.M{"token": token,
+				"currentAuthority": "access", "type": "account", "status": "ok"},
+		)
 		return
 	}
 
