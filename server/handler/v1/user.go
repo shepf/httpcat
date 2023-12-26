@@ -55,3 +55,68 @@ func UserLogin(c *gin.Context) {
 		common.CreateResponse(c, common.SuccessCode, bson.M{"token": token})
 	}
 }
+
+type UserInfoVO struct {
+	ID          uint   `json:"ID"`
+	Username    string `json:"Username"`
+	Avatar      string `json:"Avatar"`
+	UserID      string `json:"UserID"`
+	Email       string `json:"Email"`
+	Signature   string `json:"Signature"`
+	Title       string `json:"Title"`
+	Group       string `json:"Group"`
+	NotifyCount int    `json:"NotifyCount"`
+	UnreadCount int    `json:"UnreadCount"`
+	Country     string `json:"Country"`
+	Address     string `json:"Address"`
+	Phone       string `json:"Phone"`
+	Level       int    `json:"Level"`
+}
+
+func UserInfo(c *gin.Context) {
+
+	// 获取当前登录用户名, 当前只返回admin
+	username, ok := c.Get("user")
+	if !ok {
+		common.CreateResponse(c, common.ErrorCode, "Failed to get user information")
+		return
+	}
+
+	user := common.GetUser(username.(string))
+
+	// 构建包含需要保留字段的新结构体
+	info := UserInfoVO{
+		ID:          user.ID,
+		Username:    user.Username,
+		Avatar:      user.Avatar,
+		UserID:      user.UserID,
+		Email:       user.Email,
+		Signature:   user.Signature,
+		Title:       user.Title,
+		Group:       user.Group,
+		NotifyCount: user.NotifyCount,
+		UnreadCount: user.UnreadCount,
+		Country:     user.Country,
+		Address:     user.Address,
+		Phone:       user.Phone,
+		Level:       user.Level,
+	}
+
+	common.CreateResponse(c, common.SuccessCode, bson.M{"user": info})
+}
+
+func UserLoginout(c *gin.Context) {
+	token := c.GetHeader("token")
+	ylog.Infof("UserLoginout", "delete token: %s", token)
+
+	// TODO token从redis中删除
+	//err := infra.Grds.Del(context.Background(), token).Err()
+
+	//if err != nil {
+	//	common.CreateResponse(c, common.SuccessCode, err.Error())
+	//} else {
+	//	common.CreateResponse(c, common.SuccessCode, nil)
+	//}
+
+	common.CreateResponse(c, common.SuccessCode, nil)
+}

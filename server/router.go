@@ -47,16 +47,17 @@ func RegisterRouter(r *gin.Engine) {
 
 	apiv1Group = r.Group("/api/v1")
 	{
-		//apiv1Group.Use(midware.TokenAuth())
+		apiv1Group.Use(midware.TokenAuth())
 		//apiv1Group.Use(midware.RBACAuth())
 
 		//用户操作相关接口
 		userRouter := apiv1Group.Group("/user")
 		{
 			userRouter.POST("/login/account", v1.UserLogin)
-			//	userRouter.GET("/logout", v1.UserLoginout)
+			userRouter.GET("/currentUser", v1.UserInfo)
+			userRouter.GET("/logout", v1.UserLoginout)
 			//	userRouter.POST("/del", v1.DelUser)
-			//	userRouter.GET("/info", v1.UserInfo)
+			//
 			//	userRouter.POST("/update", v1.UpdateUser)
 			//	userRouter.POST("/resetPassword", v1.ResetPassword)
 			//	userRouter.POST("/checkUser", v1.CheckPassword)
