@@ -125,11 +125,22 @@ func TokenAuth() gin.HandlerFunc {
 			return
 		}
 
-		token := c.GetHeader("token")
+		//token := c.GetHeader("token")
+		//if token == "" {
+		//	ylog.Errorf("AuthRequired", "token is empty")
+		//	c.AbortWithStatus(http.StatusUnauthorized)
+		//	return
+		//}
+		// 因为前端：const authHeader = { Authorization: Bearer ${token} }，所以：
+		token := c.GetHeader("Authorization")
 		if token == "" {
 			ylog.Errorf("AuthRequired", "token is empty")
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
+		}
+		// 去掉 "Bearer " 前缀，只保留 token
+		if len(token) > 7 && strings.ToUpper(token[0:7]) == "BEARER " {
+			token = token[7:]
 		}
 
 		var userName string

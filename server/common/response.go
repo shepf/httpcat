@@ -63,13 +63,13 @@ var ErrorDescriptions = map[int]string{
 }
 
 type Response struct {
-	Code    int         `json:"code"`
-	Message string      `json:"msg"`
-	Data    interface{} `json:"data"`
+	ErrorCode int         `json:"errorCode"`
+	Message   string      `json:"msg"`
+	Data      interface{} `json:"data"`
 }
 
 func (response *Response) SetError(code int) {
-	response.Code = code
+	response.ErrorCode = code
 
 	if msg, ok := ErrorDescriptions[code]; ok {
 		response.Message = msg
