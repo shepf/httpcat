@@ -57,7 +57,6 @@ func RegisterRouter(r *gin.Engine) {
 			userRouter.GET("/currentUser", v1.UserInfo)
 			userRouter.GET("/logout", v1.UserLoginout)
 			//	userRouter.POST("/del", v1.DelUser)
-			//
 			//	userRouter.POST("/update", v1.UpdateUser)
 			//	userRouter.POST("/resetPassword", v1.ResetPassword)
 			//	userRouter.POST("/checkUser", v1.CheckPassword)

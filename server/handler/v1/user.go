@@ -63,20 +63,22 @@ func UserLogin(c *gin.Context) {
 }
 
 type UserInfoVO struct {
-	ID          uint   `json:"ID"`
-	Username    string `json:"Username"`
-	Avatar      string `json:"Avatar"`
-	UserID      string `json:"UserID"`
-	Email       string `json:"Email"`
-	Signature   string `json:"Signature"`
-	Title       string `json:"Title"`
-	Group       string `json:"Group"`
-	NotifyCount int    `json:"NotifyCount"`
-	UnreadCount int    `json:"UnreadCount"`
-	Country     string `json:"Country"`
-	Address     string `json:"Address"`
-	Phone       string `json:"Phone"`
-	Level       int    `json:"Level"`
+	ID          uint   `json:"id"`
+	Username    string `json:"name"`
+	Avatar      string `json:"avatar"`
+	UserID      string `json:"userid"`
+	Email       string `json:"email"`
+	Signature   string `json:"signature"`
+	Title       string `json:"title"`
+	Group       string `json:"group"`
+	NotifyCount int    `json:"notifyCount"`
+	UnreadCount int    `json:"unreadCount"`
+	Country     string `json:"country"`
+	Address     string `json:"address"`
+	Access      string `json:"access"`
+	Phone       string `json:"phone"`
+
+	Level int `json:"level"`
 }
 
 func UserInfo(c *gin.Context) {
@@ -104,11 +106,12 @@ func UserInfo(c *gin.Context) {
 		UnreadCount: user.UnreadCount,
 		Country:     user.Country,
 		Address:     user.Address,
+		Access:      "admin",
 		Phone:       user.Phone,
 		Level:       user.Level,
 	}
 
-	common.CreateResponse(c, common.SuccessCode, bson.M{"user": info})
+	common.CreateResponse(c, common.SuccessCode, info)
 }
 
 func UserLoginout(c *gin.Context) {
