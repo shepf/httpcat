@@ -62,7 +62,6 @@ func RegisterRouter(r *gin.Engine) {
 			//	userRouter.POST("/checkUser", v1.CheckPassword)
 			userRouter.POST("/createUploadToken", createUploadToken)
 			userRouter.POST("/checkUploadToken", checkUploadToken)
-
 		}
 
 		if common.FileEnable {
@@ -82,6 +81,10 @@ func RegisterRouter(r *gin.Engine) {
 				fileRouter.GET("/listFiles", listFiles)
 				// 获取某个文件的信息
 				fileRouter.GET("/fileInfo", fileInfo)
+
+				//获取上传文件历史记录
+				fileRouter.GET("/uploadHistoryLogs", uploadHistoryLogs)
+
 			}
 		}
 

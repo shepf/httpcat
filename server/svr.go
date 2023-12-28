@@ -17,6 +17,8 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"io"
 	"io/ioutil"
 	"log"
@@ -318,7 +320,7 @@ func sqliteInsert(Ip string, uploadTime string, filename string, fileSize string
 
 	// 创建 notifications 表（如果不存在）
 	_, err = db.Exec(`
-        CREATE TABLE IF NOT EXISTS notifications (
+        CREATE TABLE IF NOT EXISTS t_upload_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ip TEXT,
             upload_time TEXT,
@@ -333,7 +335,7 @@ func sqliteInsert(Ip string, uploadTime string, filename string, fileSize string
 	}
 
 	// 将通知信息插入到 SQLite 数据库中
-	_, err = db.Exec("INSERT INTO notifications (ip, upload_time, filename, file_size, file_md5) VALUES (?, ?, ?, ?, ?)",
+	_, err = db.Exec("INSERT INTO t_upload_log (ip, upload_time, filename, file_size, file_md5) VALUES (?, ?, ?, ?, ?)",
 		Ip, uploadTime, filename, fileSize, fileMD5)
 	if err != nil {
 		ylog.Errorf("uploadFile", "insert into db failed, err:%v", err)
@@ -508,6 +510,53 @@ func fileInfo(c *gin.Context) {
 
 	// 返回文件信息
 	common.CreateResponse(c, common.SuccessCode, fileEntry)
+}
+
+// 定义上传日志表结构
+type UploadLogModel struct {
+	ID         uint   `gorm:"primary_key" json:"id"`
+	IP         string `gorm:"column:ip" json:"ip"`
+	UploadTime string `gorm:"column:upload_time" json:"upload_time"`
+	FileName   string `gorm:"column:filename" json:"filename"`
+	FileSize   string `gorm:"column:file_size" json:"file_size"`
+	FileMD5    string `gorm:"column:file_md5" json:"file_md5"`
+}
+
+func uploadHistoryLogs(c *gin.Context) {
+	// 获取前端传递的分页参数
+	// 获取前端传递的分页参数
+	var params struct {
+		Current  int `form:"current" binding:"required"`
+		PageSize int `form:"pageSize" binding:"required"`
+	}
+	// c.ShouldBindQuery 是 Gin 框架中的一个方法，用于将请求中的查询字符串参数绑定到指定的结构体中。
+	// 它会根据结构体字段的标签和查询字符串参数的键名进行匹配和绑定。
+	if err := c.ShouldBindQuery(&params); err != nil {
+		ylog.Errorf("uploadHistoryLogs", "请求参数错误", err.Error())
+		common.CreateResponse(c, common.ParamInvalidErrorCode, err.Error())
+		return
+	}
+
+	// 查询数据库获取分页数据
+	var logs []UploadLogModel
+	// 根据 params.Current 和 params.PageSize 进行分页查询，并将结果赋值给 logs
+	dbPath := common.SqliteDBPath
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	db.Debug()
+
+	offset := (params.Current - 1) * params.PageSize
+	err = db.Table("t_upload_log").Offset(offset).Limit(params.PageSize).Find(&logs).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	common.CreateResponse(c, common.SuccessCode, logs)
+
 }
 
 func sendP2pMessage(c *gin.Context) {
