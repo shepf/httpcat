@@ -256,6 +256,15 @@ func uploadFile(c *gin.Context) {
 	fmt.Println(file, err, filename)
 
 	filePath := common.UploadDir + filename
+	// 判断目录是否存在，如果不存在则创建
+	if _, err := os.Stat(common.UploadDir); os.IsNotExist(err) {
+		err := os.MkdirAll(common.UploadDir, 0755)
+		if err != nil {
+			ylog.Errorf("uploadFile", "创建目录失败", err)
+			panic(err)
+		}
+	}
+
 	ylog.Infof("uploadFile", "upload file to: %s", filePath)
 	// 创建一个文件，文件名为filename，这里的返回值out也是一个File指针
 	out, err := os.Create(filePath)
