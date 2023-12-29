@@ -184,6 +184,9 @@ POST
 1. HTTPS support
 2. Internationalization
 
+## FAQ
+### 忘记密码怎么办？
+
 
 Feel free to raise an issue. Good luck! 🍀
 
