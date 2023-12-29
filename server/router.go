@@ -84,6 +84,8 @@ func RegisterRouter(r *gin.Engine) {
 
 				//获取上传文件历史记录
 				fileRouter.GET("/uploadHistoryLogs", uploadHistoryLogs)
+				// 删除上传历史记录
+				fileRouter.DELETE("/uploadHistoryLogs", deleteHistoryLogs)
 
 			}
 		}

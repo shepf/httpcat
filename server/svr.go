@@ -535,8 +535,10 @@ func uploadHistoryLogs(c *gin.Context) {
 	// 获取前端传递的分页参数
 	// 获取前端传递的分页参数
 	var params struct {
-		Current  int `form:"current" binding:"required"`
-		PageSize int `form:"pageSize" binding:"required"`
+		Current  int    `form:"current" binding:"required"`
+		PageSize int    `form:"pageSize" binding:"required"`
+		FileName string `form:"filename"`
+		FileMD5  string `form:"file_md5"`
 	}
 	// c.ShouldBindQuery 是 Gin 框架中的一个方法，用于将请求中的查询字符串参数绑定到指定的结构体中。
 	// 它会根据结构体字段的标签和查询字符串参数的键名进行匹配和绑定。
@@ -558,13 +560,48 @@ func uploadHistoryLogs(c *gin.Context) {
 	db.Debug()
 
 	offset := (params.Current - 1) * params.PageSize
-	err = db.Table("t_upload_log").Offset(offset).Limit(params.PageSize).Find(&logs).Error
+	query := db.Table("t_upload_log").Offset(offset).Limit(params.PageSize)
+	if params.FileName != "" {
+		query = query.Where("filename LIKE ?", "%"+params.FileName+"%")
+	}
+	if params.FileMD5 != "" {
+		query = query.Where("file_md5 = ?", params.FileMD5)
+	}
+	err = query.Find(&logs).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	common.CreateResponse(c, common.SuccessCode, logs)
+
+}
+
+func deleteHistoryLogs(c *gin.Context) {
+	ids, exists := c.GetQueryArray("id")
+	if !exists || len(ids) == 0 {
+		// 处理未传递 ID 的情况
+		ylog.Errorf("uploadHistoryLogs", "请求参数错误")
+		common.CreateResponse(c, common.ParamInvalidErrorCode, "Invalid ID")
+		return
+	}
+	ylog.Infof("deleteHistoryLogs", "删除上传文件日志 ids：", ids)
+
+	dbPath := common.SqliteDBPath
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	db.Debug()
+
+	err = db.Table("t_upload_log").Where("id IN ?", ids).Delete(&UploadLogModel{}).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	common.CreateResponse(c, common.SuccessCode, nil)
 
 }
 
