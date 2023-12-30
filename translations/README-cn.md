@@ -117,7 +117,7 @@ POST
 
 You can use the -H option to add custom HTTP headers in the cURL command.
 ```bash
-curl -v -F "f1=@/root/hello.mojo" -H "UploadToken: httpcat:bbE8NVvimYNbV-CaJ9EFMKg3YaM=:eyJkZWFkbGluZSI6M15=" http://localhost:8888/api/v1/file/upload
+curl -v -F "f1=@/root/hello.mojo" -H "UploadToken: httpcat:dZE8NVvimYNbV-YpJ9EFMKg3YaM=:eyJkZWFkbGluZSI6MH0=" http://localhost:8888/api/v1/file/upload
 ```
 
 #### 上传文件企业微信webhook通知
