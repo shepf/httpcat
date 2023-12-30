@@ -184,6 +184,25 @@ POST
 1. HTTPS support
 2. Internationalization
 
+## httpcat前端
+v0.0.7版本增加了前端页面，前端采用独立发布形式，根据需要，用户选择下载。
+
+下载前端发布文件，解压到web目录，httpcat 会自动加载web目录下的静态资源文件。
+httpcat web目录由配置文件中的static指定，如果不指定，默认为当前目录下的website/static目录。
+或者使用命令行参数指定，如：
+```bash
+--static=/home/web/website/httpcat_web/
+```
+
+1. 下载前端发布文件，如 httpcat_web_v0.0.7.zip
+2. 解压到web目录
+cd /home/web/website/httpcat_web/
+unzip httpcat_web_v0.0.7.zip
+mv  httpcat_web_v0.0.7 httpcat_web
+3. 启动httpcat服务
+4. 访问 http://
+
+
 ## FAQ
 ### 忘记密码怎么办？
 

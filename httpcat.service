@@ -8,7 +8,7 @@ After=
 # User=root
 Type=forking
 WorkingDirectory=/root
-ExecStart=/usr/local/bin/httpcat  --static=/home/web/website/upload/  --upload=/home/web/website/upload/ --download=/home/web/website/upload/  -C /etc/httpdcat/svr.yml
+ExecStart=/usr/local/bin/httpcat  --static=/home/web/website/httpcat_web/  --upload=/home/web/website/upload/ --download=/home/web/website/upload/  -C /etc/httpdcat/svr.yml
 # ExecStop=/opt/lighthouse/server/bin/start_scripts/lighthouse_service.sh stop >> /tmp/lighthouse_systemd.log
 Restart=always
 RestartSec=5

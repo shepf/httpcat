@@ -13,29 +13,22 @@ import (
 )
 
 func registerForFrontEnd(router *gin.Engine) {
+
+	StaticDir := common.StaticDir
 	//定义根路径路由,显示首页
 	router.GET("/", func(c *gin.Context) {
-		c.File("./static/index.html")
+		c.File(StaticDir + "/index.html")
 	})
 
-	// 使用两个路由组,一个处理静态文件,一个处理 API
-	//在这个静态文件组中,以`common.StaticDir`作为静态文件根目录,并且映射到路由`/static`下。这样访问:
-	static := router.Group("/static")
-	static.StaticFS("/", http.Dir(common.StaticDir))
+	fmt.Println("StaticDir:", StaticDir)
+	// 处理静态文件
+	router.StaticFS("/static", http.Dir(StaticDir))
+
 }
 
 func RegisterRouter(r *gin.Engine) {
 
 	registerForFrontEnd(r)
-
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"commit":  common.Commit,
-			"build":   common.Build,
-			"version": common.Version,
-			"ci":      common.CI,
-		})
-	})
 
 	r.Use(midware.Metrics())
 
@@ -49,6 +42,12 @@ func RegisterRouter(r *gin.Engine) {
 	{
 		apiv1Group.Use(midware.TokenAuth())
 		//apiv1Group.Use(midware.RBACAuth())
+
+		confRouter := apiv1Group.Group("/conf")
+		{
+			confRouter.GET("/getVersion", v1.GetVersion)
+
+		}
 
 		//用户操作相关接口
 		userRouter := apiv1Group.Group("/user")
