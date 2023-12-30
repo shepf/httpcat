@@ -186,21 +186,24 @@ POST
 
 ## httpcat前端
 v0.0.7版本增加了前端页面，前端采用独立发布形式，根据需要，用户选择下载。
+因为httpcat自带静态资源文件处理，用户可以自由选择是否使用前端页面。
+
+本前端是单页面应用，生产静态资源走 static 路由，api接口走 api 路由。如果用户自搭nginx，注意配置 /static 路由到静态资源目录，/api 路由到 httpcat 服务。
 
 下载前端发布文件，解压到web目录，httpcat 会自动加载web目录下的静态资源文件。
-httpcat web目录由配置文件中的static指定，如果不指定，默认为当前目录下的website/static目录。
+httpcat web目录由配置文件中的static指定，如果不指定，默认为当前目录下的 website/static目录。
 或者使用命令行参数指定，如：
 ```bash
 --static=/home/web/website/httpcat_web/
 ```
 
-1. 下载前端发布文件，如 httpcat_web_v0.0.7.zip
+### 前端部署
+1. 下载前端独立发布文件，如 httpcat_web_v0.0.7.zip
 2. 解压到web目录
-cd /home/web/website/httpcat_web/
-unzip httpcat_web_v0.0.7.zip
-mv  httpcat_web_v0.0.7 httpcat_web
+   cd /home/web/website/httpcat_web/
+   unzip httpcat_web_v0.0.7.zip
+   mv  httpcat_web_v0.0.7 httpcat_web
 3. 启动httpcat服务
-4. 访问 http://
 
 
 ## FAQ
