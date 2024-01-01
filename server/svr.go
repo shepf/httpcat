@@ -631,6 +631,18 @@ func sendP2pMessage(c *gin.Context) {
 
 }
 
+func saveUploadToken(c *gin.Context) {
+
+	common.CreateResponse(c, common.SuccessCode, nil)
+
+}
+
+func getUploadTokenLists(c *gin.Context) {
+
+	common.CreateResponse(c, common.SuccessCode, nil)
+
+}
+
 func createUploadToken(c *gin.Context) {
 	// 定义结构体用于解析 JSON 数据
 	type MessageData struct {
