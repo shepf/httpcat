@@ -173,3 +173,43 @@ func InitializeUserTable(db *gorm.DB) {
 		}
 	}
 }
+
+type UploadTokenItem struct {
+	ID        int       `gorm:"primary_key" json:"id"`
+	Appkey    string    `gorm:"column:appkey;unique" json:"appkey"`
+	Appsecret string    `gorm:"column:app_secret" json:"appsecret"`
+	State     string    `gorm:"column:state" json:"state"`
+	Desc      string    `gorm:"column:desc" json:"desc"`
+	CreatedAt time.Time `gorm:"column:create_at" json:"created_at"`
+}
+
+// 指定表名
+func (UploadTokenItem) TableName() string {
+	return "t_upload_token"
+}
+
+func InitializeUploadTokenTable(db *gorm.DB) {
+	err := db.AutoMigrate(&UploadTokenItem{})
+	if err != nil {
+		ylog.Errorf("initDB", "create upload_tokens table failed, err:%v", err)
+		return
+	}
+
+	var count int64
+	db.Model(&UploadTokenItem{}).Where("appkey = ?", "httpcat").Count(&count)
+	if count == 0 {
+		// 插入默认记录
+		token := UploadTokenItem{
+			Appkey:    AppKey,
+			Appsecret: AppSecret,
+			State:     "open",
+			Desc:      "系统初始化默认appkey:httpcat",
+			CreatedAt: time.Now(),
+		}
+		err = db.Create(&token).Error
+		if err != nil {
+			ylog.Errorf("initDB", "insert upload token record failed, err:%v", err)
+			return
+		}
+	}
+}

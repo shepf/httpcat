@@ -17,8 +17,8 @@ import (
 )
 
 var whiteUrlList = []string{
-	"/api/v1/file/upload", //上传文件，我们需要开放出来，使用ak、sk方式生成专门的上传token，不支持界面操作上传
-	"/api/v1/file/listFiles",
+	"/api/v1/file/upload",   //上传文件，我们需要开放出来，使用ak、sk方式生成专门的上传token，不支持界面操作上传
+	"/api/v1/file/download", // 下载文件，我们需要开放出来
 	"/api/v1/user/login/account"}
 
 type AuthClaims struct {

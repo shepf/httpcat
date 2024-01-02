@@ -33,6 +33,7 @@ const (
 
 	//业务错误码
 	DirISNotExists
+	FileIsNotExists
 	ReadDirFailed
 )
 
@@ -58,8 +59,9 @@ var ErrorDescriptions = map[int]string{
 	UserLocked:               "user locked",
 
 	//业务错误码
-	DirISNotExists: "did is not exists",
-	ReadDirFailed:  "read dir failed",
+	DirISNotExists:  "did is not exists",
+	FileIsNotExists: "file is not exists",
+	ReadDirFailed:   "read dir failed",
 }
 
 type Response struct {
@@ -83,6 +85,17 @@ func CreateResponse(c *gin.Context, code int, data interface{}) {
 	response.Data = data
 	c.JSON(
 		http.StatusOK,
+		response,
+	)
+}
+
+func BadRequest(c *gin.Context, msg string) {
+	var response Response
+
+	response.SetError(ParamInvalidErrorCode)
+	response.Message = msg
+	c.JSON(
+		http.StatusBadRequest,
 		response,
 	)
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"gin_web_demo/server/common"
 	"gin_web_demo/server/common/utils"
@@ -367,6 +368,8 @@ func downloadFile(c *gin.Context) {
 	file, err := os.Open(path)
 	if err != nil {
 		c.AbortWithStatus(404)
+		ylog.Errorf("downloadFile", "打开文件失败,文件不存在", err)
+		common.CreateResponse(c, common.FileIsNotExists, nil)
 		return
 	}
 
@@ -632,31 +635,154 @@ func sendP2pMessage(c *gin.Context) {
 }
 
 func saveUploadToken(c *gin.Context) {
+	// 解析请求数据
+	var data struct {
+		Appkey    string `json:"appkey"`
+		State     string `json:"state"`
+		Appsecret string `json:"appsecret"`
+		Desc      string `json:"desc"`
+	}
+	err := c.ShouldBindJSON(&data)
+	if err != nil {
+		// 处理请求数据解析错误
+		common.CreateResponse(c, common.ParamInvalidErrorCode, err)
+		return
+	}
 
-	common.CreateResponse(c, common.SuccessCode, nil)
+	// 连接数据库
+	dbPath := common.SqliteDBPath
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		// 处理数据库连接错误
+		common.CreateResponse(c, common.ErrorCode, err)
+		return
+	}
 
+	// 查询数据
+	var token common.UploadTokenItem
+	result := db.Table("t_upload_token").Where("appkey = ?", data.Appkey).First(&token)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			// 插入数据
+			err = db.Table("t_upload_token").Create(&common.UploadTokenItem{
+				Appkey:    data.Appkey,
+				State:     data.State,
+				Appsecret: data.Appsecret,
+				CreatedAt: time.Now(),
+			}).Error
+			if err != nil {
+				// 处理插入数据错误
+				common.CreateResponse(c, common.ErrorCode, err)
+				return
+			}
+		} else {
+			// 处理查询数据错误
+			common.CreateResponse(c, common.ErrorCode, result.Error)
+			return
+		}
+	} else {
+		// 更新数据
+		err = db.Table("t_upload_token").Where("appkey = ?", data.Appkey).Updates(common.UploadTokenItem{
+			State:     data.State,
+			Appsecret: data.Appsecret,
+			Desc:      data.Desc,
+		}).Error
+		if err != nil {
+			// 处理更新数据错误
+			common.CreateResponse(c, common.ErrorCode, err)
+			return
+		}
+	}
+
+	// 返回成功响应，并将 id 字段返回给前端
+	// 查询数据获取 id
+	var item common.UploadTokenItem
+	err = db.Table("t_upload_token").Where("appkey = ?", data.Appkey).First(&item).Error
+	if err != nil {
+		// 处理查询数据错误
+		common.CreateResponse(c, common.ErrorCode, err)
+		return
+	}
+	response := struct {
+		ID int `json:"id"`
+	}{
+		ID: item.ID,
+	}
+
+	// 返回成功响应
+	common.CreateResponse(c, common.SuccessCode, response)
+}
+
+func removeUploadToken(c *gin.Context) {
+	// 获取请求参数
+	appkey := c.Query("appkey")
+	if appkey == "" {
+		// 处理缺少必传参数的情况
+		common.CreateResponse(c, common.ParamInvalidErrorCode, errors.New("缺少必传参数 appkey"))
+		return
+	}
+
+	// 连接数据库
+	dbPath := common.SqliteDBPath
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		// 处理数据库连接错误
+		common.CreateResponse(c, common.ErrorCode, err)
+		return
+	}
+
+	// 删除记录
+	result := db.Table("t_upload_token").Where("appkey = ?", appkey).Delete(&common.UploadTokenItem{})
+	if result.Error != nil {
+		// 处理删除记录错误
+		common.CreateResponse(c, common.ErrorCode, result.Error)
+		return
+	}
+
+	if result.RowsAffected > 0 {
+		// 返回删除成功响应
+		common.CreateResponse(c, common.SuccessCode, "删除成功")
+	} else {
+		// 返回删除失败响应（即使 appkey 不存在也显示删除成功）
+		common.CreateResponse(c, common.SuccessCode, "删除成功")
+	}
 }
 
 func getUploadTokenLists(c *gin.Context) {
+	// 查询数据库获取数据
+	var logs []common.UploadTokenItem
+	dbPath := common.SqliteDBPath
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		// 处理数据库连接错误
+		common.CreateResponse(c, common.ErrorCode, err)
+		return
+	}
 
-	common.CreateResponse(c, common.SuccessCode, nil)
+	// 查询数据
+	err = db.Table("t_upload_token").Find(&logs).Error
+	if err != nil {
+		// 处理查询错误
+		common.CreateResponse(c, common.ErrorCode, err)
+		return
+	}
 
+	// 返回查询结果
+	common.CreateResponse(c, common.SuccessCode, logs)
 }
 
 func createUploadToken(c *gin.Context) {
 	// 定义结构体用于解析 JSON 数据
 	type MessageData struct {
-		AccessKey string `json:"accessKey"`
-		SecretKey string `json:"secretKey"`
+		AccessKey string `json:"appkey" binding:"required"`
+		SecretKey string `json:"appsecret" binding:"required"`
 	}
 
 	var data MessageData
 
 	// 解析 JSON 数据到结构体
 	if err := c.ShouldBindJSON(&data); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid JSON data",
-		})
+		common.BadRequest(c, err.Error())
 		return
 	}
 

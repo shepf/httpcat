@@ -174,6 +174,9 @@ func initDB() {
 		// 加载用户到缓存
 		InitUser()
 
+		// 创建 upload_tokens 表（如果不存在）
+		InitializeUploadTokenTable(db)
+
 		ylog.Infof("initDB", "init end~")
 	}
 
