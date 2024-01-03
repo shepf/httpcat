@@ -159,6 +159,7 @@ func initDB() {
 		type Notification struct {
 			ID         uint   `gorm:"column:id;primary_key"`
 			IP         string `gorm:"column:ip"`
+			Appkey     string `gorm:"column:appkey"`
 			UploadTime string `gorm:"column:upload_time"`
 			Filename   string `gorm:"column:filename"`
 			FileSize   string `gorm:"column:file_size"`

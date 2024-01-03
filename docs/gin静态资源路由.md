@@ -62,3 +62,35 @@ publicPath: process.env.NODE_ENV === 'production' ? '/foo/' : '/',
 
 所以这里的思路就是，配置前端publicPath配置，生产环境静态资源从 static 路由获取，完成整个单页面应用初始化。
 
+
+### F5 刷新日志查询界面 404 问题
+测试发现，虽然配置了 配置前端publicPath，生产环境静态资源从 static 路由获取，但是F5刷新日志查询界面，还是会404。
+
+前端会根据你的路由配置，如下，向 /list-page 发起请求，这个请求会被gin的路由处理，返回404。 实际上这个请求后台有对应的静态文件，所以前端应该请求的是
+/static/list-page/index.html，这个请求才会被gin的静态文件处理，返回静态文件。
+
+```bash
+{
+name: 'list.table-list',
+icon: 'table',
+path: '/list-page',
+component: './TableList',
+},
+```
+说明前端配置的 publicPath，对路由配置无效。
+
+解决思路，修改前端路由配置，我们直接把static加上。
+```bash
+{
+name: 'list.table-list',
+icon: 'table',
+path: '/static/list-page',
+component: './TableList',
+},
+```
+发现这样还不行，前端编译后， 会多一个static目录，实际的后端路由变成了 /static/static/list-page
+
+最终解决办法：
+因为在F5刷新页面时，浏览器会直接向后端发送请求，而不会经过前端路由。
+要解决这个问题，您需要在后端服务器上进行相应的配置，以确保在刷新页面时正确处理前端路由，并返回前端应用程序的入口文件。
+

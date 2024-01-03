@@ -235,6 +235,7 @@ func uploadFile(c *gin.Context) {
 		return
 	}
 
+	appkey := ""
 	// 判断是否开启了UploadToken校验
 	if common.EnableUploadToken {
 		uploadToken := c.Request.Header.Get("UploadToken")
@@ -249,7 +250,7 @@ func uploadFile(c *gin.Context) {
 			common.Unauthorized(c, "Invalid UploadToken format")
 			return
 		}
-		appkey := parts[0]
+		appkey = parts[0]
 		// 根据appkey获取对应的appsecret
 		common.UploadTokenLock.RLock()
 		tokenItem, ok := common.UploadTokenTable[appkey]
@@ -324,13 +325,13 @@ func uploadFile(c *gin.Context) {
 	// 是否sqlite记录
 	if common.EnableSqlite {
 		ylog.Infof("uploadFile", "sqliteInsert enable")
-		go sqliteInsert(Ip, uploadTime, filename, fileSize, fileMD5)
+		go sqliteInsert(Ip, appkey, uploadTime, filename, fileSize, fileMD5)
 	}
 
 	common.CreateResponse(c, common.SuccessCode, "upload successful!")
 }
 
-func sqliteInsert(Ip string, uploadTime string, filename string, fileSize string, fileMD5 string) {
+func sqliteInsert(Ip string, appkey string, uploadTime string, filename string, fileSize string, fileMD5 string) {
 	ylog.Infof("uploadFile", "sqliteInsert start")
 
 	// 读取 SQLite 数据库文件路径配置项
@@ -344,11 +345,12 @@ func sqliteInsert(Ip string, uploadTime string, filename string, fileSize string
 	}
 	defer db.Close()
 
-	// 创建 notifications 表（如果不存在）
+	// 创建 t_upload_log 表（如果不存在）
 	_, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS t_upload_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ip TEXT,
+            appkey TEXT,
             upload_time TEXT,
             filename TEXT,
             file_size TEXT,
@@ -361,8 +363,8 @@ func sqliteInsert(Ip string, uploadTime string, filename string, fileSize string
 	}
 
 	// 将通知信息插入到 SQLite 数据库中
-	_, err = db.Exec("INSERT INTO t_upload_log (ip, upload_time, filename, file_size, file_md5) VALUES (?, ?, ?, ?, ?)",
-		Ip, uploadTime, filename, fileSize, fileMD5)
+	_, err = db.Exec("INSERT INTO t_upload_log (ip, appkey, upload_time, filename, file_size, file_md5) VALUES (?, ?, ?, ?, ?, ?)",
+		Ip, appkey, uploadTime, filename, fileSize, fileMD5)
 	if err != nil {
 		ylog.Errorf("uploadFile", "insert into db failed, err:%v", err)
 		return
@@ -544,6 +546,7 @@ func fileInfo(c *gin.Context) {
 type UploadLogModel struct {
 	ID         uint   `gorm:"primary_key" json:"id"`
 	IP         string `gorm:"column:ip" json:"ip"`
+	Appkey     string `gorm:"column:appkey" json:"appkey"`
 	UploadTime string `gorm:"column:upload_time" json:"upload_time"`
 	FileName   string `gorm:"column:filename" json:"filename"`
 	FileSize   string `gorm:"column:file_size" json:"file_size"`

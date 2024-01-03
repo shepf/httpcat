@@ -24,6 +24,11 @@ func registerForFrontEnd(router *gin.Engine) {
 	// 处理静态文件
 	router.StaticFS("/static", http.Dir(StaticDir))
 
+	// 定义通配符路由，将所有未匹配到的路由重定向到 index.html
+	router.NoRoute(func(c *gin.Context) {
+		c.File(StaticDir + "/index.html")
+	})
+
 }
 
 func RegisterRouter(r *gin.Engine) {
