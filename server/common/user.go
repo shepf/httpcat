@@ -2,6 +2,7 @@ package common
 
 import (
 	"crypto/sha1"
+	"encoding/json"
 	"fmt"
 	"gin_web_demo/server/common/ylog"
 	"gorm.io/driver/sqlite"
@@ -53,6 +54,12 @@ var (
 	UserLock  sync.RWMutex
 )
 
+// 上传凭证表
+var (
+	UploadTokenTable map[string]*UploadTokenItem
+	UploadTokenLock  sync.RWMutex
+)
+
 const LoginSessionTimeoutMin = 120
 
 // GetUser find the user in the cache and returns, if user not exist, return nil.
@@ -85,7 +92,7 @@ func InitUser() {
 
 	go func() {
 		for {
-			time.Sleep(3 * time.Second)
+			time.Sleep(10 * time.Second)
 			table := loadUserFromDB()
 			if table != nil {
 				UserLock.Lock()
@@ -94,6 +101,65 @@ func InitUser() {
 			}
 		}
 	}()
+}
+
+func InitUploadToken() {
+	table := loadUploadTokenFromDB()
+	if table != nil {
+		UploadTokenLock.Lock()
+		UploadTokenTable = table
+		UploadTokenLock.Unlock()
+	}
+
+	go func() {
+		for {
+			time.Sleep(5 * time.Second)
+			// 方便定义问题，打印 UploadTokenTable
+			jsonBytes, err := json.MarshalIndent(UploadTokenTable, "", "  ")
+			if err != nil {
+				log.Printf("无法序列化 UploadTokenTable: %v\n", err)
+				return
+			}
+			log.Printf("UploadTokenTable: %s\n", string(jsonBytes))
+
+			table := loadUploadTokenFromDB()
+			if table != nil {
+				UploadTokenLock.Lock()
+				UploadTokenTable = table
+				UploadTokenLock.Unlock()
+			}
+		}
+	}()
+}
+
+func loadUploadTokenFromDB() map[string]*UploadTokenItem {
+	ylog.Infof("loadUploadTokenFromDB", "loadUploadTokenFromDB")
+
+	// 连接数据库
+	dbPath := SqliteDBPath
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		// 处理数据库连接错误
+		log.Printf("加载上传token表数据失败：%v", err)
+		return nil
+	}
+
+	// 查询数据
+	var tokens []*UploadTokenItem
+	result := db.Table("t_upload_token").Find(&tokens)
+	if result.Error != nil {
+		// 处理查询数据错误
+		log.Printf("加载上传token表数据失败：%v", result.Error)
+		return nil
+	}
+
+	// 构建 map[string]*UploadTokenItem
+	uploadTokenMap := make(map[string]*UploadTokenItem)
+	for _, token := range tokens {
+		uploadTokenMap[token.Appkey] = token
+	}
+
+	return uploadTokenMap
 }
 
 func loadUserFromDB() map[string]*User {
@@ -175,12 +241,13 @@ func InitializeUserTable(db *gorm.DB) {
 }
 
 type UploadTokenItem struct {
-	ID        int       `gorm:"primary_key" json:"id"`
-	Appkey    string    `gorm:"column:appkey;unique" json:"appkey"`
-	Appsecret string    `gorm:"column:app_secret" json:"appsecret"`
-	State     string    `gorm:"column:state" json:"state"`
-	Desc      string    `gorm:"column:desc" json:"desc"`
-	CreatedAt time.Time `gorm:"column:create_at" json:"created_at"`
+	ID         int       `gorm:"primary_key" json:"id"`
+	Appkey     string    `gorm:"column:appkey;unique" json:"appkey"`
+	Appsecret  string    `gorm:"column:app_secret" json:"appsecret"`
+	State      string    `gorm:"column:state" json:"state"`
+	Desc       string    `gorm:"column:desc" json:"desc"`
+	CreatedAt  time.Time `gorm:"column:create_at" json:"created_at"`
+	IsSysBuilt bool      `gorm:"column:is_sys_built;default:false" json:"is_sys_built"`
 }
 
 // 指定表名
@@ -195,16 +262,21 @@ func InitializeUploadTokenTable(db *gorm.DB) {
 		return
 	}
 
+	// 永远保持系统内置记录的 id 字段值为 1
+	db.Where("id = ?", 1).Delete(&UploadTokenItem{})
+
 	var count int64
-	db.Model(&UploadTokenItem{}).Where("appkey = ?", "httpcat").Count(&count)
+	db.Model(&UploadTokenItem{}).Where("appkey = ?", AppKey).Count(&count)
 	if count == 0 {
 		// 插入默认记录
 		token := UploadTokenItem{
-			Appkey:    AppKey,
-			Appsecret: AppSecret,
-			State:     "open",
-			Desc:      "系统初始化默认appkey:httpcat",
-			CreatedAt: time.Now(),
+			ID:         1,
+			Appkey:     AppKey,
+			Appsecret:  AppSecret,
+			State:      "open",
+			Desc:       "系统内置，不可删除和编辑，只能通过修改配置文件来修改",
+			CreatedAt:  time.Now(),
+			IsSysBuilt: true,
 		}
 		err = db.Create(&token).Error
 		if err != nil {

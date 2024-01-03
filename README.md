@@ -111,8 +111,8 @@ An independent upload token credential is generated based on the app_key and app
 http://{{ip}}:{{port}}/api/v1/user/createUploadToken
 POST
 {
-"accessKey": "httpcat",
-"secretKey": "httpcat_app_secret"
+"appkey": "httpcat",
+"appsecret": "httpcat_app_secret"
 }
 response：
 {

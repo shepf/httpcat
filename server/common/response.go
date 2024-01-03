@@ -99,3 +99,14 @@ func BadRequest(c *gin.Context, msg string) {
 		response,
 	)
 }
+
+func Unauthorized(c *gin.Context, msg string) {
+	var response Response
+
+	response.SetError(AuthFailedErrorCode)
+	response.Message = msg
+	c.JSON(
+		http.StatusUnauthorized,
+		response,
+	)
+}

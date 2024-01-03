@@ -176,6 +176,7 @@ func initDB() {
 
 		// 创建 upload_tokens 表（如果不存在）
 		InitializeUploadTokenTable(db)
+		InitUploadToken()
 
 		ylog.Infof("initDB", "init end~")
 	}

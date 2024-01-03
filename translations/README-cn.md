@@ -96,16 +96,16 @@ curl -vF "f1=@/root/hello.mojo" http://localhost:8888/api/v1/file/upload
 > 注意： f1 为服务端代码定义的，修改为其他，如file，会报错上传失败。
 
 
-#### 上传文件认证
-如果配置文件开启了 `enable_upload_token`，那么上传文件需要认证，需要在请求头中添加token，token的值为配置文件中的`enable_upload_token`值。
-根据app_key、app_secret生成独立的上传token凭证。上传文件时候，附带token，服务端会校验token是否合法。
+#### 上传文件认证：上传token
+如果配置文件开启了 `enable_upload_token`，那么上传文件需要认证，需要在请求头中添加 上传token，token的值为配置文件中的`enable_upload_token`值。
+根据app_key、app_secret生成独立的上传token凭证。上传文件时候，附带上传token，服务端会校验token是否合法。
 
 
 http://{{ip}}:{{port}}/api/v1/user/createUploadToken
 POST
 {
-"accessKey": "httpcat",
-"secretKey": "httpcat_app_secret"
+"appkey": "httpcat",
+"appsecret": "httpcat_app_secret"
 }
 例如返回：
 {
@@ -119,6 +119,21 @@ You can use the -H option to add custom HTTP headers in the cURL command.
 ```bash
 curl -v -F "f1=@/root/hello.mojo" -H "UploadToken: httpcat:dZE8NVvimYNbV-YpJ9EFMKg3YaM=:eyJkZWFkbGluZSI6MH0=" http://localhost:8888/api/v1/file/upload
 ```
+
+##### 上传token生成
+上传token，根据app_key、app_secret生成。系统会根据配置文件内置一个app_key、app_secret。
+
+> 注意：系统内置的app_key、app_secret，只能通过svr.yml来修改，不能通过界面修改，重启httpcat会加载系统内置的app_key、app_secret。
+
+如：svr.yml文件中配置如下：
+```darcs
+app_key: "httpcat" # 上传授权的app_key
+app_secret: "httpcat_app_secret" # 上传授权的app_secret
+```
+除了系统内置的app_key、app_secret，还可以通过界面添加自定义的app_key、app_secret，
+可以通过界面根据app_key、app_secret生成上传token。
+
+
 
 #### 上传文件企业微信webhook通知
 配置svr.yml文件中的`persistent_notify_url`，上传成功后，会发送企业微信通知。

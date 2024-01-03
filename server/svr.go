@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -230,7 +231,7 @@ func uploadFile(c *gin.Context) {
 	// FormFile方法会读取参数“upload”后面的文件名，返回值是一个File指针，和一个FileHeader指针，和一个err错误。
 	file, header, err := c.Request.FormFile("f1")
 	if err != nil {
-		c.String(http.StatusBadRequest, "Bad request,check your file~")
+		common.BadRequest(c, "Bad request,check your file~")
 		return
 	}
 
@@ -238,16 +239,31 @@ func uploadFile(c *gin.Context) {
 	if common.EnableUploadToken {
 		uploadToken := c.Request.Header.Get("UploadToken")
 		if uploadToken == "" {
-			common.CreateResponse(c, common.ErrorCode, "UploadToken is empty")
+			common.BadRequest(c, "UploadToken is empty")
 			return
 		}
+
+		// 从UploadToken中获取appkey
+		parts := strings.Split(uploadToken, ":")
+		if len(parts) != 3 {
+			common.Unauthorized(c, "Invalid UploadToken format")
+			return
+		}
+		appkey := parts[0]
+		// 根据appkey获取对应的appsecret
+		common.UploadTokenLock.RLock()
+		tokenItem, ok := common.UploadTokenTable[appkey]
+		common.UploadTokenLock.RUnlock()
+		if !ok {
+			common.Unauthorized(c, "Invalid Appkey")
+			return
+		}
+
 		// 校验UploadToken
-		accessKey := common.AppKey
-		secretKey := common.AppSecret
-		mac := auth.New(accessKey, secretKey)
+		mac := auth.New(appkey, tokenItem.Appsecret)
 
 		if !mac.VerifyUploadToken(uploadToken) {
-			common.CreateResponse(c, common.ErrorCode, "UploadToken is invalid")
+			common.Unauthorized(c, "UploadToken is invalid")
 			return
 		}
 	}
@@ -731,8 +747,34 @@ func removeUploadToken(c *gin.Context) {
 		return
 	}
 
+	// 查询记录
+	var token common.UploadTokenItem
+	result := db.Table("t_upload_token").Where("appkey = ?", appkey).First(&token)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			// 返回 appkey 不存在的错误响应
+			common.CreateResponse(c, common.ErrorCode, errors.New("appkey不存在"))
+			return
+		} else {
+			// 处理查询数据错误
+			common.CreateResponse(c, common.ErrorCode, result.Error)
+			return
+		}
+	}
+
+	// 判断是否为系统内置记录
+	if token.IsSysBuilt {
+		ylog.Errorf("removeUploadToken", "系统内置记录不允许删除")
+		// 返回系统内置记录不允许删除的错误响应
+		// 返回系统内置记录不允许删除的错误响应
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "系统内置记录不允许删除",
+		})
+		return
+	}
+
 	// 删除记录
-	result := db.Table("t_upload_token").Where("appkey = ?", appkey).Delete(&common.UploadTokenItem{})
+	result = db.Table("t_upload_token").Where("appkey = ?", appkey).Delete(&common.UploadTokenItem{})
 	if result.Error != nil {
 		// 处理删除记录错误
 		common.CreateResponse(c, common.ErrorCode, result.Error)
