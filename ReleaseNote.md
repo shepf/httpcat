@@ -1,6 +1,7 @@
 ## v0.0.8
 1. 增加了上传token管理能力，可以给不同用户或平台配置不同的appkey、appsecret，生成不同的上传token。
 2. 下载接口wget使用说明。
+3. 自定义appkey、appsecret，生成上传token 以及上传校验实现。
 
 ## v0.0.7
 1. 支持用户账号密码登录
