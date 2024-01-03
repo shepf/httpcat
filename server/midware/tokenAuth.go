@@ -27,7 +27,7 @@ type AuthClaims struct {
 }
 
 const (
-	JWTExpireMinute = 720
+	JWTExpireMinute = 60
 )
 
 var APITokenSecret = []byte(common.JwtSecret)
@@ -58,8 +58,17 @@ func VerifyToken(tokenString string, secret []byte) (*jwt.MapClaims, error) {
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		// 校验令牌到期时间
+		expirationTime := claims["exp"].(float64)
+		currentTime := time.Now().Unix()
+		if currentTime > int64(expirationTime) {
+			ylog.Errorf("VerifyToken", "Token expired")
+			return nil, errors.New("Token expired")
+		}
+
 		return &claims, nil
 	}
+
 	return nil, errors.New("verify token failed")
 }
 

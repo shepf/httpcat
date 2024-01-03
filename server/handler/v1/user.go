@@ -1,12 +1,18 @@
 package v1
 
 import (
+	"crypto/sha1"
+	"fmt"
 	"gin_web_demo/server/common"
 	"gin_web_demo/server/common/ylog"
 	"gin_web_demo/server/midware"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"io"
 	"net/http"
+	"time"
 )
 
 type AuthRequest struct {
@@ -22,7 +28,7 @@ func UserLogin(c *gin.Context) {
 	// 通过c.BindJSON(&user)将请求体中的JSON数据绑定到user结构体中。如果绑定失败，会返回参数无效的错误响应。
 	err := c.BindJSON(&user)
 	if err != nil {
-		common.CreateResponse(c, common.ParamInvalidErrorCode, err.Error())
+		common.BadRequest(c, err.Error())
 		return
 	}
 
@@ -30,12 +36,12 @@ func UserLogin(c *gin.Context) {
 		//使用jwt token
 		_, err := midware.CheckUser(user.Username, user.Password)
 		if err != nil {
-			common.CreateResponse(c, common.AuthFailedErrorCode, err.Error())
+			common.Unauthorized(c, err.Error())
 			return
 		}
 		token, err := midware.GeneralJwtToken(user.Username)
 		if err != nil {
-			common.CreateResponse(c, common.AuthFailedErrorCode, err.Error())
+			common.Unauthorized(c, err.Error())
 			return
 		}
 
@@ -50,7 +56,7 @@ func UserLogin(c *gin.Context) {
 	_, err = midware.CheckUser(user.Username, user.Password)
 	//密码校验
 	if err != nil {
-		common.CreateResponse(c, common.AuthFailedErrorCode, "verify password failed")
+		common.Unauthorized(c, "verify password failed")
 	} else {
 		token := midware.GeneralSession()
 		//todo token存储到reids
@@ -60,6 +66,67 @@ func UserLogin(c *gin.Context) {
 		}
 		common.CreateResponse(c, common.SuccessCode, bson.M{"token": token})
 	}
+}
+
+func ChangePasswd(c *gin.Context) {
+
+	var params struct {
+		OldPassword string `form:"oldPassword" binding:"required"`
+		NewPassword string `form:"newPassword" binding:"required"`
+	}
+
+	if err := c.ShouldBind(&params); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 获取当前登录用户名, 当前只返回admin
+	username, ok := c.Get("user")
+	if !ok {
+		common.CreateResponse(c, common.ErrorCode, "Failed to get user information")
+		return
+	}
+
+	// 从数据库中查询用户信息
+	var user common.User
+	dbPath := common.SqliteDBPath
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		// 处理数据库连接错误
+		common.CreateResponse(c, common.ErrorCode, err)
+		return
+	}
+
+	db.Where("username = ?", username.(string)).First(&user)
+
+	// 验证旧密码是否正确
+	t := sha1.New()
+	_, err = io.WriteString(t, params.OldPassword+user.Salt)
+	oldPasswordHash := fmt.Sprintf("%x", t.Sum(nil))
+	if err != nil || oldPasswordHash != user.Password {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Incorrect old password"})
+		return
+	}
+
+	// 根据具体的逻辑，生成新密码的哈希值和盐值
+	t = sha1.New()
+	_, err = io.WriteString(t, params.NewPassword+user.Salt)
+	newPasswordHash := fmt.Sprintf("%x", t.Sum(nil))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate new password hash"})
+		return
+	}
+
+	// 更新用户的密码信息
+	user.Password = newPasswordHash
+	user.PasswordUpdateTime = time.Now().Unix()
+
+	// 保存更新后的用户信息到数据库
+	db.Save(&user)
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
+
 }
 
 type UserInfoVO struct {
