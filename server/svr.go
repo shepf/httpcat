@@ -561,6 +561,8 @@ func uploadHistoryLogs(c *gin.Context) {
 		PageSize int    `form:"pageSize" binding:"required"`
 		FileName string `form:"filename"`
 		FileMD5  string `form:"file_md5"`
+		IP       string `form:"ip"`
+		AppKey   string `form:"appkey"`
 	}
 	// c.ShouldBindQuery 是 Gin 框架中的一个方法，用于将请求中的查询字符串参数绑定到指定的结构体中。
 	// 它会根据结构体字段的标签和查询字符串参数的键名进行匹配和绑定。
@@ -582,12 +584,18 @@ func uploadHistoryLogs(c *gin.Context) {
 	db.Debug()
 
 	offset := (params.Current - 1) * params.PageSize
-	query := db.Table("t_upload_log").Offset(offset).Limit(params.PageSize)
+	query := db.Table("t_upload_log").Offset(offset).Limit(params.PageSize).Order("upload_time DESC")
 	if params.FileName != "" {
 		query = query.Where("filename LIKE ?", "%"+params.FileName+"%")
 	}
 	if params.FileMD5 != "" {
 		query = query.Where("file_md5 = ?", params.FileMD5)
+	}
+	if params.IP != "" {
+		query = query.Where("ip = ?", params.IP)
+	}
+	if params.AppKey != "" {
+		query = query.Where("appkey = ?", params.AppKey)
 	}
 	err = query.Find(&logs).Error
 	if err != nil {
