@@ -104,7 +104,7 @@ func ChangePasswd(c *gin.Context) {
 	_, err = io.WriteString(t, params.OldPassword+user.Salt)
 	oldPasswordHash := fmt.Sprintf("%x", t.Sum(nil))
 	if err != nil || oldPasswordHash != user.Password {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Incorrect old password"})
+		common.Unauthorized(c, "Incorrect old password")
 		return
 	}
 
@@ -125,7 +125,7 @@ func ChangePasswd(c *gin.Context) {
 	db.Save(&user)
 
 	// 返回成功响应
-	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
+	common.CreateResponse(c, common.SuccessCode, "Password changed successfully")
 
 }
 
