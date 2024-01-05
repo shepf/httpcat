@@ -85,13 +85,14 @@ ExecStart=/usr/local/bin/httpcat  --static=/home/web/website/upload/  --upload=/
 ### 文件操作相关接口
 #### 使用curl工具上传文件
 ```bash
-curl -vF "f1=@/root/hello.mojo" http://localhost:8888/api/v1/file/upload
+curl -v -F "f1=@/root/hello.mojo" -H "UploadToken: httpcat:dZE8NVvimYNbV-YpJ9EFMKg3YaM=:eyJkZWFkbGluZSI6MH0=" http://localhost:8888/api/v1/file/upload
 ```
 使用了 `curl` 命令来向指定的 URL 发送一个 `multipart/form-data` 格式的 POST 请求。下面是对每部分的解释：
 - `curl`: 一个用来与服务器端进行数据传输的工具，支持多种协议。
 - `-v`: 在命令执行时输出详细的操作信息，即 verbose 模式。
 - `-F "f1=@/root/hello.mojo"`: 指定了要发送的表单数据。`-F` 选项表示要发送一个表单，`f1=@/root/hello.mojo` 表示要上传的文件字段名为 `f1`，文件路径为 `/root/hello.mojo`。这个字段的值是指向本地文件的相对或绝对路径。
 - `http://localhost:8888/api/v1/file/upload`: 要发送请求到的 URL，这条命令会将文件上传到这个 URL。
+- `-H "UploadToken: httpcat:dZE8NVvimYNbV-YpJ9EFMKg3YaM=:eyJkZWFkbGluZSI6MH0="`: 上传token，根据app_key、app_secret生成独立的上传token凭证。上传文件时候，附带上传token，服务端会校验token是否合法。
 
 > 注意： f1 为服务端代码定义的，修改为其他，如file，会报错上传失败。
 
@@ -100,27 +101,6 @@ curl -vF "f1=@/root/hello.mojo" http://localhost:8888/api/v1/file/upload
 如果配置文件开启了 `enable_upload_token`，那么上传文件需要认证，需要在请求头中添加 上传token，token的值为配置文件中的`enable_upload_token`值。
 根据app_key、app_secret生成独立的上传token凭证。上传文件时候，附带上传token，服务端会校验token是否合法。
 
-
-http://{{ip}}:{{port}}/api/v1/user/createUploadToken
-POST
-{
-"appkey": "httpcat",
-"appsecret": "httpcat_app_secret"
-}
-例如返回：
-{
-"code": 0,
-"msg": "success",
-"data": "httpcat:dZE8NVvimYNbV-YpJ9EFMKg3YaM=:eyJkZWFkbGluZSI6MH0="
-}
-
-
-You can use the -H option to add custom HTTP headers in the cURL command.
-```bash
-curl -v -F "f1=@/root/hello.mojo" -H "UploadToken: httpcat:dZE8NVvimYNbV-YpJ9EFMKg3YaM=:eyJkZWFkbGluZSI6MH0=" http://localhost:8888/api/v1/file/upload
-```
-
-##### 上传token生成
 上传token，根据app_key、app_secret生成。系统会根据配置文件内置一个app_key、app_secret。
 
 > 注意：系统内置的app_key、app_secret，只能通过svr.yml来修改，不能通过界面修改，重启httpcat会加载系统内置的app_key、app_secret。
@@ -132,8 +112,8 @@ app_secret: "httpcat_app_secret" # 上传授权的app_secret
 ```
 除了系统内置的app_key、app_secret，还可以通过界面添加自定义的app_key、app_secret，
 可以通过界面根据app_key、app_secret生成上传token。
-
-
+如下图，可以通过点击“生成上传token”按钮，获取上传token。
+![img.png](img.png)
 
 #### 上传文件企业微信webhook通知
 配置svr.yml文件中的`persistent_notify_url`，上传成功后，会发送企业微信通知。
@@ -206,10 +186,10 @@ POST
 2. Internationalization
 
 ## httpcat前端
-v0.0.7版本增加了前端页面，前端采用独立发布形式，根据需要，用户选择下载。
+新版本增加了前端页面，前端采用独立发布形式，根据需要，用户选择下载。
 因为httpcat自带静态资源文件处理，用户可以自由选择是否使用前端页面。
 
-本前端是单页面应用，生产静态资源走 static 路由，api接口走 api 路由。如果用户自搭nginx，注意配置 /static 路由到静态资源目录，/api 路由到 httpcat 服务。
+本前端是单页面应用，生产环境静态资源走 static 路由，api接口走 api 路由。如果用户自搭nginx，注意配置 /static 路由到静态资源目录，/api 路由到 httpcat 服务。
 
 下载前端发布文件，解压到web目录，httpcat 会自动加载web目录下的静态资源文件。
 httpcat web目录由配置文件中的static指定，如果不指定，默认为当前目录下的 website/static目录。
@@ -221,14 +201,28 @@ httpcat web目录由配置文件中的static指定，如果不指定，默认为
 ### 前端部署
 1. 下载前端独立发布文件，如 httpcat_web_v0.0.7.zip
 2. 解压到web目录
-   cd /home/web/website/httpcat_web/
-   unzip httpcat_web_v0.0.7.zip
-   mv  httpcat_web_v0.0.7 httpcat_web
+    ```bash
+       cd /home/web/website/httpcat_web/
+       unzip httpcat_web_v0.0.9.zip
+       mv  httpcat_web_v0.0.9 httpcat_web
+    ```
 3. 启动httpcat服务
+   启动服务需要指定web界面目录，使用 --static 参数指定，如：
+    ```bash
+    ./httpcat --static=/home/web/website/httpcat_web/  -C conf/svr.yml
+    ```
 
-
-## FAQ
+## 🍀 FAQ
 ### 忘记密码怎么办？
+如果忘记密码，可以修改sqlite数据库，删除admin用户，重启httpcat服务，会重新创建admin用户。
+或者直接删除sqlite数据库，重启httpcat服务，会重新创建sqlite数据库。
+
+默认的sqlite数据库路径，由配置文件中的sqlite_db_path指定，默认为：`./data/sqlite.db`，可以通过配置文件修改sqlite数据库路径。
+
+我们找到这个文件，并删除这个文件,然后重启httpcat即可。
+```bash
+find / -name sqlite.db
+```
 
 
 Feel free to raise an issue. Good luck! 🍀

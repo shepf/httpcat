@@ -91,40 +91,37 @@ ExecStart=/usr/local/bin/httpcat  --static=/home/web/website/upload/  --upload=/
 ### File Operation Related APIs
 #### Uploading Files Using Curl Tool
 ```bash
-curl -vF "f1=@/root/hello.mojo" http://localhost:8888/api/v1/file/upload
+curl -v -F "f1=@/root/hello.mojo" -H "UploadToken: httpcat:dZE8NVvimYNbV-YpJ9EFMKg3YaM=:eyJkZWFkbGluZSI6MH0=" http://localhost:8888/api/v1/file/upload
 ```
 The curl command is used to send a multipart/form-data format POST request to the specified URL. Here is an explanation of each part:
 - `curl`:  curl is a tool used for transferring data to/from a server, supporting multiple protocols.
 - `-v`: Detailed operational information is displayed during command execution, which is known as verbose mode.
 - `-F "f1=@/root/hello.mojo"`: Specifies the form data to be sent. The -F option indicates that a form is being sent, and f1=@/root/hello.mojo indicates that the file field to be uploaded is named f1, with the file path /root/hello.mojo. The value of this field is the relative or absolute path to the local file.
 - `http://localhost:8888/api/v1/file/upload`: 要发送请求到的 URL，这条命令会将文件上传到这个 URL。
+- `-H "UploadToken: httpcat:dZE8NVvimYNbV-YpJ9EFMKg3YaM=:eyJkZWFkbGluZSI6MH0="`: "Upload Token" is a unique authentication token generated based on the "app_key" and "app_secret". When uploading a file, the token is attached and the server verifies its validity.
+
 
 > Note: f1 is defined in the server-side code. Modifying it to something else, such as file, will result in an error and the upload will fail.
 
+#### 上传文件认证：上传token
+If the configuration file has enable_upload_token enabled, file uploads require authentication. You need to add the upload token to the request header, with the token value being the same as the enable_upload_token value in the configuration file.
+An independent upload token credential is generated based on the app_key and app_secret. When uploading a file, the upload token is included, and the server will verify the token's validity.
 
-#### File Upload Authentication
-If the enable_upload_token option is enabled in the configuration file, file uploads require authentication. You need to add a token in the request header, where the token value should match the enable_upload_token value specified in the configuration file.
-An independent upload token credential is generated based on the app_key and app_secret. When uploading a file, include the token in the request. The server will then verify the validity of the token.
+Upload token is generated based on app_key and app_secret. The system will have a built-in app_key and app_secret according to the configuration file.
 
+> Note: The built-in app_key and app_secret in the system can only be modified through the svr.yml file and cannot be modified through the interface. Restarting httpcat will load the system's built-in app_key and app_secret.
 
-
-http://{{ip}}:{{port}}/api/v1/user/createUploadToken
-POST
-{
-"appkey": "httpcat",
-"appsecret": "httpcat_app_secret"
-}
-response：
-{
-"code": 0,
-"msg": "success",
-"data": "httpcat:dZE8NVvimYNbV-YpJ9EFMKg3YaM=:eyJkZWFkbGluZSI6MH0="
-}
-
-
+svr.yml：
 ```bash
-curl -v -F "f1=@/root/hello.mojo" -H "UploadToken: httpcat:bbE8NVvimYNbV-CaJ9EFMKg3YaM=:eyJkZWFkbGluZSI6M15=" http://localhost:8888/api/v1/file/upload
+app_key: "httpcat" # 上传授权的app_key
+app_secret: "httpcat_app_secret" # 上传授权的app_secret
 ```
+
+In addition to the built-in app_key and app_secret, you can also add custom app_key and app_secret through the interface. 
+You can generate upload tokens based on the app_key and app_secret through the interface.
+As shown in the figure below, you can click the "Generate Upload Token" button to obtain the upload token.
+![img.png](translations/img.png)
+
 
 ####  Upload file Enterprise WeChat webhook notification.
 Configure the persistent_notify_url in the svr.yml file. After a successful upload, an Enterprise WeChat notification will be sent.
@@ -187,3 +184,44 @@ POST
 "message": "ceshi cccccccccccc"
 }
 
+## httpcat web frontend
+The new version includes a frontend page, which is released separately. Users can choose to download it according to their needs.
+Since httpcat comes with built-in static resource file handling, users have the freedom to decide whether to use the frontend page.
+
+This frontend is a single-page application. In the production environment, static resources are accessed through the /static route, while API endpoints are accessed through the /api route. If users set up their own Nginx server, they should configure the /static route to point to the static resource directory and the /api route to the httpcat service.
+
+To use the frontend, download the release package and extract it to the web directory. httpcat will automatically load the static resource files from the web directory. The web directory is specified in the configuration file using the static parameter. If not specified, the default location is the website/static directory under the current directory. 
+
+Alternatively, you can specify the directory using command-line parameters, such as:
+```bash
+--static=/home/web/website/httpcat_web/
+```
+
+### Frontend Deployment
+1. Download the standalone frontend release file, such as httpcat_web_v0.0.9.zip.
+2. Extract it to the web directory
+    ```bash
+       cd /home/web/website/httpcat_web/
+       unzip httpcat_web_v0.0.9.zip
+       mv  httpcat_web_v0.0.9 httpcat_web
+    ```
+3. Starting the httpcat Service
+   To start the service, you need to specify the web interface directory using the --static parameter. For example:
+    ```bash
+    ./httpcat --static=/home/web/website/httpcat_web/  -C conf/svr.yml
+    ```
+   
+## 🍀 FAQ
+### What to Do If You Forget the Password?
+If you forget the password, you can modify the SQLite database by deleting the admin user. After restarting the httpcat service, a new admin user will be created.
+
+Alternatively, you can directly delete the SQLite database and restart the httpcat service, which will create a new SQLite database.
+
+The default path for the SQLite database is specified by the sqlite_db_path parameter in the configuration file, which is set to ./data/sqlite.db by default. You can modify the SQLite database path by changing this configuration.
+
+To reset the password, locate the SQLite database file and delete it. Then, restart the httpcat service, and a new SQLite database will be created.
+```bash
+find / -name sqlite.db
+```
+
+Feel free to raise an issue. Good luck! 🍀

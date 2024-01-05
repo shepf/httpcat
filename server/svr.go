@@ -260,6 +260,12 @@ func uploadFile(c *gin.Context) {
 			return
 		}
 
+		// appkey开启或关闭判断
+		if tokenItem.State == "closed" {
+			common.Unauthorized(c, "Invalid Appkey, appkey is closed")
+			return
+		}
+
 		// 校验UploadToken
 		mac := auth.New(appkey, tokenItem.Appsecret)
 
