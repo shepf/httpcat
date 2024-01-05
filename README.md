@@ -86,6 +86,37 @@ vi httpcat.service
 ExecStart=/usr/local/bin/httpcat  --static=/home/web/website/upload/  --upload=/home/web/website/upload/ --download=/home/web/website/upload/  -C /etc/httpdcat/svr.yml
 ```
 
+## httpcat web frontend
+The new version includes a frontend page, which is released separately. Users can choose to download it according to their needs.
+Since httpcat comes with built-in static resource file handling, users have the freedom to decide whether to use the frontend page.
+
+This frontend is a single-page application. In the production environment, static resources are accessed through the /static route, while API endpoints are accessed through the /api route. If users set up their own Nginx server, they should configure the /static route to point to the static resource directory and the /api route to the httpcat service.
+
+To use the frontend, download the release package and extract it to the web directory. httpcat will automatically load the static resource files from the web directory. The web directory is specified in the configuration file using the static parameter. If not specified, the default location is the website/static directory under the current directory.
+
+Alternatively, you can specify the directory using command-line parameters, such as:
+```bash
+--static=/home/web/website/httpcat_web/
+```
+
+### Frontend Deployment
+1. Download the standalone frontend release file, such as httpcat_web_v0.0.9.zip.
+2. Extract it to the web directory
+    ```bash
+       cd /home/web/website/httpcat_web/
+       unzip httpcat_web_v0.0.9.zip
+       mv  httpcat_web_v0.0.9 httpcat_web
+    ```
+3. Starting the httpcat Service
+   To start the service, you need to specify the web interface directory using the --static parameter. For example:
+    ```bash
+    ./httpcat --static=/home/web/website/httpcat_web/  -C conf/svr.yml
+    ```
+4. Accessing the httpcat Frontend Service
+    ```bash
+    http://127.0.0.1:8888
+    ```
+
 
 ## ❤ Tips and Tricks
 ### File Operation Related APIs
@@ -103,7 +134,7 @@ The curl command is used to send a multipart/form-data format POST request to th
 
 > Note: f1 is defined in the server-side code. Modifying it to something else, such as file, will result in an error and the upload will fail.
 
-#### 上传文件认证：上传token
+#### File Upload Authentication: UploadToken
 If the configuration file has enable_upload_token enabled, file uploads require authentication. You need to add the upload token to the request header, with the token value being the same as the enable_upload_token value in the configuration file.
 An independent upload token credential is generated based on the app_key and app_secret. When uploading a file, the upload token is included, and the server will verify the token's validity.
 
@@ -113,8 +144,8 @@ Upload token is generated based on app_key and app_secret. The system will have 
 
 svr.yml：
 ```bash
-app_key: "httpcat" # 上传授权的app_key
-app_secret: "httpcat_app_secret" # 上传授权的app_secret
+app_key: "httpcat"
+app_secret: "httpcat_app_secret"
 ```
 
 In addition to the built-in app_key and app_secret, you can also add custom app_key and app_secret through the interface. 
@@ -184,33 +215,11 @@ POST
 "message": "ceshi cccccccccccc"
 }
 
-## httpcat web frontend
-The new version includes a frontend page, which is released separately. Users can choose to download it according to their needs.
-Since httpcat comes with built-in static resource file handling, users have the freedom to decide whether to use the frontend page.
+## 💪TODO
+1. HTTPS support
 
-This frontend is a single-page application. In the production environment, static resources are accessed through the /static route, while API endpoints are accessed through the /api route. If users set up their own Nginx server, they should configure the /static route to point to the static resource directory and the /api route to the httpcat service.
+Feel free to raise an issue. Good luck! 🍀
 
-To use the frontend, download the release package and extract it to the web directory. httpcat will automatically load the static resource files from the web directory. The web directory is specified in the configuration file using the static parameter. If not specified, the default location is the website/static directory under the current directory. 
-
-Alternatively, you can specify the directory using command-line parameters, such as:
-```bash
---static=/home/web/website/httpcat_web/
-```
-
-### Frontend Deployment
-1. Download the standalone frontend release file, such as httpcat_web_v0.0.9.zip.
-2. Extract it to the web directory
-    ```bash
-       cd /home/web/website/httpcat_web/
-       unzip httpcat_web_v0.0.9.zip
-       mv  httpcat_web_v0.0.9 httpcat_web
-    ```
-3. Starting the httpcat Service
-   To start the service, you need to specify the web interface directory using the --static parameter. For example:
-    ```bash
-    ./httpcat --static=/home/web/website/httpcat_web/  -C conf/svr.yml
-    ```
-   
 ## 🍀 FAQ
 ### What to Do If You Forget the Password?
 If you forget the password, you can modify the SQLite database by deleting the admin user. After restarting the httpcat service, a new admin user will be created.
@@ -224,4 +233,15 @@ To reset the password, locate the SQLite database file and delete it. Then, rest
 find / -name sqlite.db
 ```
 
-Feel free to raise an issue. Good luck! 🍀
+## 📝License
+1. This software is for personal use only and is strictly prohibited for commercial purposes.
+2. The copying, distribution, modification, and use of this software is subject to the following conditions:
+   - Prohibited for commercial purposes.
+   - Prohibited for use in any commercial product or service.
+   - Copyright and license statements must be preserved within the software.
+   - Modifying or removing copyright and license statements within the software is prohibited unless explicitly permitted.
+3. This software is provided "as is" without any warranties or liabilities.
+4. By using this software, you indicate that you have accepted this license agreement.
+
+Good luck! 🍀
+

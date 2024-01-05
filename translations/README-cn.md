@@ -80,6 +80,36 @@ vi httpcat.service
 ExecStart=/usr/local/bin/httpcat  --static=/home/web/website/upload/  --upload=/home/web/website/upload/ --download=/home/web/website/upload/  -C /etc/httpdcat/svr.yml
 ```
 
+## httpcat前端
+新版本增加了前端页面，前端采用独立发布形式，根据需要，用户选择下载。
+因为httpcat自带静态资源文件处理，用户可以自由选择是否使用前端页面。
+
+本前端是单页面应用，生产环境静态资源走 static 路由，api接口走 api 路由。如果用户自搭nginx，注意配置 /static 路由到静态资源目录，/api 路由到 httpcat 服务。
+
+下载前端发布文件，解压到web目录，httpcat 会自动加载web目录下的静态资源文件。
+httpcat web目录由配置文件中的static指定，如果不指定，默认为当前目录下的 website/static目录。
+或者使用命令行参数指定，如：
+```bash
+--static=/home/web/website/httpcat_web/
+```
+
+### 前端部署
+1. 下载前端独立发布文件，如 httpcat_web_v0.0.7.zip
+2. 解压到web目录
+    ```bash
+       cd /home/web/website/httpcat_web/
+       unzip httpcat_web_v0.0.9.zip
+       mv  httpcat_web_v0.0.9 httpcat_web
+    ```
+3. 启动httpcat服务
+   启动服务需要指定web界面目录，使用 --static 参数指定，如：
+    ```bash
+    ./httpcat --static=/home/web/website/httpcat_web/  -C conf/svr.yml
+    ```
+4. 访问httpcat 前端服务
+    ```bash
+    http://127.0.0.1:8888
+    ```
 
 ## ❤使用技巧
 ### 文件操作相关接口
@@ -107,8 +137,8 @@ curl -v -F "f1=@/root/hello.mojo" -H "UploadToken: httpcat:dZE8NVvimYNbV-YpJ9EFM
 
 如：svr.yml文件中配置如下：
 ```darcs
-app_key: "httpcat" # 上传授权的app_key
-app_secret: "httpcat_app_secret" # 上传授权的app_secret
+app_key: "httpcat"
+app_secret: "httpcat_app_secret"
 ```
 除了系统内置的app_key、app_secret，还可以通过界面添加自定义的app_key、app_secret，
 可以通过界面根据app_key、app_secret生成上传token。
@@ -183,34 +213,8 @@ POST
 
 ## 💪TODO
 1. HTTPS support
-2. Internationalization
 
-## httpcat前端
-新版本增加了前端页面，前端采用独立发布形式，根据需要，用户选择下载。
-因为httpcat自带静态资源文件处理，用户可以自由选择是否使用前端页面。
-
-本前端是单页面应用，生产环境静态资源走 static 路由，api接口走 api 路由。如果用户自搭nginx，注意配置 /static 路由到静态资源目录，/api 路由到 httpcat 服务。
-
-下载前端发布文件，解压到web目录，httpcat 会自动加载web目录下的静态资源文件。
-httpcat web目录由配置文件中的static指定，如果不指定，默认为当前目录下的 website/static目录。
-或者使用命令行参数指定，如：
-```bash
---static=/home/web/website/httpcat_web/
-```
-
-### 前端部署
-1. 下载前端独立发布文件，如 httpcat_web_v0.0.7.zip
-2. 解压到web目录
-    ```bash
-       cd /home/web/website/httpcat_web/
-       unzip httpcat_web_v0.0.9.zip
-       mv  httpcat_web_v0.0.9 httpcat_web
-    ```
-3. 启动httpcat服务
-   启动服务需要指定web界面目录，使用 --static 参数指定，如：
-    ```bash
-    ./httpcat --static=/home/web/website/httpcat_web/  -C conf/svr.yml
-    ```
+Feel free to raise an issue. Good luck! 🍀
 
 ## 🍀 FAQ
 ### 忘记密码怎么办？
@@ -224,6 +228,14 @@ httpcat web目录由配置文件中的static指定，如果不指定，默认为
 find / -name sqlite.db
 ```
 
+## 📝License
+1. 本软件仅供个人使用，禁止用于商业目的。
+2. 本软件的复制、分发、修改和使用应遵循以下条件：
+   - 禁止用于商业目的。
+   - 禁止将本软件用于任何商业产品或服务。
+   - 保留软件中的版权和许可声明。
+   - 除非获得明确的书面许可，禁止修改或删除软件中的版权和许可声明。
+3. 本软件按 "原样" 提供，作者不承担任何明示或暗示的保证和责任。
+4. 如果您使用了本软件，即表示您已接受此许可协议。
 
-Feel free to raise an issue. Good luck! 🍀
-
+Good luck! 🍀
