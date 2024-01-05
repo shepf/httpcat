@@ -11,35 +11,67 @@ HttpCat 是一个基于go实现的 HTTP 的文件传输服务，旨在提供简�
 * 无需外部依赖，易于移植
 
 ## 🎉安装
-解压到httpcat目录:
+1. 下载最新httpcat安装包
+   `https://github.com/shepf/httpcat-release/tags`
+
+2. 规划和创建httpcat使用的目录
+   假设，我们计划如下启动项目:
+   ```bash
+   /usr/local/bin/httpcat  --port=80 --static=/home/web/website/httpcat_web/  --upload=/home/web/website/upload/ --download=/home/web/website/upload/  -C /etc/httpdcat/svr.yml
+   ```
+   * --port 指定httpcat监听端口
+   * --upload 指定上传文件目录：
+   * --download 指定下载文件目录：
+   * -C 指定使用的配置文件 （注意：根据需要修改sqlite文件存储位置：sqlite_db_path: "./data/sqlite.db" ）
+
+
+   准备上传文件目录（这里上传和下载我们使用相同目录）：
+   ```bash
+   mkdir -p /home/web/website/upload/
+   ```
+
+   准备web静态资源目录：
+   ```bash
+   mkdir -p /home/web/website/httpcat_web/  
+   ```
+
+   准备配置文件存放目录：
+   ```bash
+   mkdir -p /etc/httpdcat/
+   ```
+
+3. 安装过程
 ```bash
-tar -zxvf httpcat_*.tar.gz -C httpcat
+   mkdir httpcat
+   cd httpcat
+```
+上传安装包 httpcat_v0.0.9.tar.gz、httpcat_web_v0.0.9.zip
+
+
+安装httpcat
+```bash
+tar -zxvf httpcat_v0.0.9.tar.gz
+cp httpcat /usr/local/bin/
+cp conf/svr.yml /etc/httpdcat/
 ```
 
-修改配置文件:
+安装httpcat_web
 ```bash
-cd httpcat
-vi ./conf/svr.yml
+cp httpcat_web_v0.0.9.zip /home/web/website/
+cd /home/web/website/
+unzip httpcat_v0.0.9.tar.gz
+mv dist httpcat_web
 ```
 
-linux下运行:
+检查
 ```bash
-./httpcat -C conf/svr.yml
+httpcat -v
+httpcat -h
 ```
 
-windows下运行:
+windows下运行参数同linux，只是使用httpcat.exe替换httpcat
 ```bash
 httpcat.exe --upload /home/web/website/download/ --download /home/web/website/download/ -C F:\open_code\httpcat\server\conf\svr.yml
-```
-
-```bash
-# ./httpcat -h
-Usage of ./httpcat:
-  -C, --config string     ConfigPath (default "./conf/svr.yml")
-      --download string   指定下载文件的路径,右斜线结尾 (default "./website/download/")
-  -P, --port int          host port.
-      --static string     指定静态资源路径(web) (default "./website/static/")
-      --upload string     指定上传文件的路径,右斜线结尾 (default "./website/upload/")
 ```
 
 ### 使用tmux运行在后台
