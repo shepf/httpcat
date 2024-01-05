@@ -3,10 +3,11 @@ English | [简体中文](translations/README-cn.md)
 ## 🚀HttpCat Overview
 HttpCat is an HTTP file transfer service implemented in Go, designed to provide a simple, efficient, and stable solution for file uploading and downloading.
 
-Project goals: To create a reliable, efficient, and user-friendly HTTP file transfer Swiss Army Knife that greatly enhances your control and experience with file transfers. Whether it's for temporary sharing or bulk file transfers, HttpCat will be your excellent assistant.
+Project goals: To create a reliable, efficient, and user-friendly HTTP file transfer Swiss Army Knife that greatly enhances your control and experience with file transfers.
+
+Whether it's for temporary sharing or bulk file transfers, HttpCat will be your excellent assistant.
 
 Please note that this translation is a direct translation and may require further refinement by a professional translator for the best results.
-
 
 ## 💥Key Features
 * Simple and easy to use
@@ -91,9 +92,13 @@ The new version includes a frontend page, which is released separately. Users ca
 
 Since httpcat comes with built-in static resource file handling, users have the freedom to decide whether to use the frontend page.
 
-This frontend is a single-page application. In the production environment, static resources are accessed through the /static route, while API endpoints are accessed through the /api route. If users set up their own Nginx server, they should configure the /static route to point to the static resource directory and the /api route to the httpcat service.
+This frontend is a single-page application. In the production environment, static resources are accessed through the /static route, while API endpoints are accessed through the /api route. 
 
-To use the frontend, download the release package and extract it to the web directory. httpcat will automatically load the static resource files from the web directory. The web directory is specified in the configuration file using the static parameter. If not specified, the default location is the website/static directory under the current directory.
+If users set up their own Nginx server, they should configure the /static route to point to the static resource directory and the /api route to the httpcat service.
+
+To use the frontend, download the release package and extract it to the web directory. httpcat will automatically load the static resource files from the web directory.
+
+The web directory is specified in the configuration file using the static parameter. If not specified, the default location is the website/static directory under the current directory.
 
 Alternatively, you can specify the directory using command-line parameters, such as:
 ```bash
@@ -146,7 +151,8 @@ When uploading a file, the upload token is included, and the server will verify 
 
 Upload token is generated based on app_key and app_secret. The system will have a built-in app_key and app_secret according to the configuration file.
 
-> Note: The built-in app_key and app_secret in the system can only be modified through the svr.yml file and cannot be modified through the interface. Restarting httpcat will load the system's built-in app_key and app_secret.
+> Note: The built-in app_key and app_secret in the system can only be modified through the svr.yml file and cannot be modified through the interface.
+> Restarting httpcat will load the system's built-in app_key and app_secret.
 
 svr.yml：
 ```bash
@@ -173,7 +179,9 @@ File upload archived, upload information:
 - File MD5: 8346ecb8e6342d98a9738c5409xxx
 
 #### Support SQLite to retain upload history.
-If the enable_sqlite option is enabled in the configuration, uploaded files will be recorded in an SQLite database. You can use the `sqlite` command-line tool to query the upload history records.
+If the enable_sqlite option is enabled in the configuration, uploaded files will be recorded in an SQLite database. 
+
+You can use the `sqlite` command-line tool to query the upload history records.
 
 Use the `sqlite` command-line tool to create a database and query data.
 
@@ -212,12 +220,14 @@ To ensure the correct filename for the downloaded file, you can use the -O param
 P2P functionality needs to be enabled in the configuration file, which is disabled by default.
 
 #### Sending messages to the P2P network via HTTP API
+```bash
 http://{{ip}}:{{port}}/api/v1/p2p/send_message
 POST
 {
 "topic": "httpcat",
 "message": "ceshi cccccccccccc"
 }
+```
 
 ## 💪TODO
 1. HTTPS support
