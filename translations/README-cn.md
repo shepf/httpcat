@@ -106,8 +106,8 @@ ExecStart=/usr/local/bin/httpcat --port=80  --static=/home/web/website/httpcat_w
 
 ```bash
 cp  httpcat.service /usr/lib/systemd/system/httpcat.service
-systemctl daemon-reload
-systemctl start httpcat
+sudo systemctl daemon-reload
+sudo systemctl start httpcat
 ```
 
 > 注意：根据你的业务需要修改启动参数
