@@ -179,8 +179,16 @@ The curl command is used to send a multipart/form-data format POST request to th
 - `http://localhost:8888/api/v1/file/upload`: 要发送请求到的 URL，这条命令会将文件上传到这个 URL。
 - `-H "UploadToken: httpcat:dZE8NVvimYNbV-YpJ9EFMKg3YaM=:eyJkZWFkbGluZSI6MH0="`: "Upload Token" is a unique authentication token generated based on the "app_key" and "app_secret". When uploading a file, the token is attached and the server verifies its validity.
 
-
 > Note: f1 is defined in the server-side code. Modifying it to something else, such as file, will result in an error and the upload will fail.
+
+In the curl command, you can use the --retry parameter to specify the number of retry attempts after a failure.
+
+By setting the --retry parameter to a value greater than 0, you can instruct curl to retry uploading the file if it fails.
+```
+curl --retry 3 xxx
+```
+You can adjust the retry count based on the actual situation to ensure the reliability and stability of file uploads.
+
 
 #### File Upload Authentication: UploadToken
 If the configuration file has enable_upload_token enabled, file uploads require authentication.

@@ -166,6 +166,11 @@ curl -v -F "f1=@/root/hello.mojo" -H "UploadToken: httpcat:dZE8NVvimYNbV-YpJ9EFM
 
 > 注意： f1 为服务端代码定义的，修改为其他，如file，会报错上传失败。
 
+在 curl 命令中，可以使用 --retry 参数来指定失败后的重试次数。通过设置 --retry 参数为一个大于 0 的值，可以让 curl 在失败后尝试重新上传文件。
+```
+curl --retry 3 xxx
+```
+你可以根据实际情况调整重试次数，确保上传文件的可靠性和稳定性。
 
 #### 上传文件认证：上传token
 如果配置文件开启了 `enable_upload_token`，那么上传文件需要认证，需要在请求头中添加 上传token，token的值为配置文件中的`enable_upload_token`值。
