@@ -96,10 +96,11 @@ httpcat web目录由配置文件中的static指定，如果不指定，默认为
 ### 前端部署
 1. 下载前端独立发布文件，如 httpcat_web_v0.0.7.zip
 2. 解压到web目录
+   Assuming the web directory configured for httpcat is:  `/home/web/website/httpcat_web/`
     ```bash
-       cd /home/web/website/httpcat_web/
+       cd /home/web/website/
        unzip httpcat_web_v0.0.9.zip
-       mv  httpcat_web_v0.0.9 httpcat_web
+       mv  dist httpcat_web
     ```
 3. 启动httpcat服务
    启动服务需要指定web界面目录，使用 --static 参数指定，如：

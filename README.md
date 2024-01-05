@@ -109,9 +109,9 @@ Alternatively, you can specify the directory using command-line parameters, such
 1. Download the standalone frontend release file, such as httpcat_web_v0.0.9.zip.
 2. Extract it to the web directory
     ```bash
-       cd /home/web/website/httpcat_web/
+       cd /home/web/website/
        unzip httpcat_web_v0.0.9.zip
-       mv  httpcat_web_v0.0.9 httpcat_web
+       mv  dist httpcat_web
     ```
 3. Starting the httpcat Service
    To start the service, you need to specify the web interface directory using the --static parameter. For example:
