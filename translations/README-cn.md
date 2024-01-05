@@ -194,12 +194,15 @@ wget -O syslog222 http://{{ip}}:{{port}}/api/v1/file/download?filename=syslog222
 需要配置文件开启p2p功能，默认关闭
 
 #### 通过http接口向p2p网络发送消息
+```bash
 http://{{ip}}:{{port}}/api/v1/p2p/send_message
 POST
 {
 "topic": "httpcat",
 "message": "ceshi cccccccccccc"
 }
+```
+
 
 ## 💪TODO
 1. HTTPS support
@@ -216,6 +219,7 @@ Feel free to raise an issue. Good luck! 🍀
 我们找到这个文件，并删除这个文件,然后重启httpcat即可。
 ```bash
 find / -name sqlite.db
+rm xxx/sqlite.db
 ```
 
 ## 📝License
