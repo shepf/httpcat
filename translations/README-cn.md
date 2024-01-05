@@ -97,6 +97,13 @@ $ tmux kill-session -t tmux_httpcat
 ```
 
 ### linux可以使用systemd运行在后台
+安装包自带了一个httpcat.service文件，可以直接使用systemd运行在后台，你可以根据自己的需要修改httpcat.service文件。
+例如：修改httpcat.service文件中的ExecStart参数，修改为你的启动参数。
+比如添加监听端口参数：`--port=80`
+```bash
+ExecStart=/usr/local/bin/httpcat --port=80  --static=/home/web/website/httpcat_web/  --upload=/home/web/website/upload/ --download=/home/web/website/upload/  -C /etc/httpdcat/svr.yml
+```
+
 ```bash
 cp  httpcat.service /usr/lib/systemd/system/httpcat.service
 systemctl daemon-reload

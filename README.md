@@ -101,6 +101,17 @@ $ tmux kill-session -t tmux_httpcat
 
 
 ### Linux can use systemd to run in the background
+The installation package comes with an httpcat.service file that allows you to run httpcat in the background using systemd. 
+
+You can modify the httpcat.service file according to your needs.
+
+For example, you can modify the ExecStart parameter in the httpcat.service file to specify your own startup parameters.
+
+To add a listening port parameter, you can add --port=80:
+```bash
+ExecStart=/usr/local/bin/httpcat --port=80  --static=/home/web/website/httpcat_web/  --upload=/home/web/website/upload/ --download=/home/web/website/upload/  -C /etc/httpdcat/svr.yml
+```
+
 ```bash
 cp  httpcat.service /usr/lib/systemd/system/httpcat.service
 systemctl daemon-reload
