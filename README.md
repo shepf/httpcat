@@ -88,6 +88,7 @@ ExecStart=/usr/local/bin/httpcat  --static=/home/web/website/upload/  --upload=/
 
 ## httpcat web frontend
 The new version includes a frontend page, which is released separately. Users can choose to download it according to their needs.
+
 Since httpcat comes with built-in static resource file handling, users have the freedom to decide whether to use the frontend page.
 
 This frontend is a single-page application. In the production environment, static resources are accessed through the /static route, while API endpoints are accessed through the /api route. If users set up their own Nginx server, they should configure the /static route to point to the static resource directory and the /api route to the httpcat service.
@@ -135,8 +136,13 @@ The curl command is used to send a multipart/form-data format POST request to th
 > Note: f1 is defined in the server-side code. Modifying it to something else, such as file, will result in an error and the upload will fail.
 
 #### File Upload Authentication: UploadToken
-If the configuration file has enable_upload_token enabled, file uploads require authentication. You need to add the upload token to the request header, with the token value being the same as the enable_upload_token value in the configuration file.
-An independent upload token credential is generated based on the app_key and app_secret. When uploading a file, the upload token is included, and the server will verify the token's validity.
+If the configuration file has enable_upload_token enabled, file uploads require authentication.
+
+You need to add the upload token to the request header, with the token value being the same as the enable_upload_token value in the configuration file.
+
+An independent upload token credential is generated based on the app_key and app_secret. 
+
+When uploading a file, the upload token is included, and the server will verify the token's validity.
 
 Upload token is generated based on app_key and app_secret. The system will have a built-in app_key and app_secret according to the configuration file.
 
@@ -192,17 +198,15 @@ SELECT * FROM notifications;
 
 
 #### download file
-##### api interface
-View the list of files in a specific directory within the download root.
-`http://127.0.0.1:8888/api/v1/file/listFiles?dir=
-`
 Download a specific file.
-`http://127.0.0.1:8888/api/v1/file/download?filename=xxx.jpg
-`
-Get information about a specific file, including its MD5 hash.
-`http://{{ip}}:{{port}}/api/v1/file/fileInfo?name=FlF9mrjXgAAZHon.jpg
-`
+```bash
+wget -O xxx.jpg  http://127.0.0.1:8888/api/v1/file/download?filename=xxx.jpg
+```
+When using the wget command to download a file, the name of the file is determined by the filename portion of the request URL.
 
+Due to the presence of URL parameters, the wget command may treat the entire URL as the filename.
+
+To ensure the correct filename for the downloaded file, you can use the -O parameter to specify the filename.
 
 ### P2P Related APIs
 P2P functionality needs to be enabled in the configuration file, which is disabled by default.

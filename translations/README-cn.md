@@ -183,22 +183,12 @@ SELECT * FROM notifications;
 ```
 
 #### 下载文件
-##### api 接口
-查看下载根目录下，某个目录的文件列表
-`http://127.0.0.1:8888/api/v1/file/listFiles?dir=
-`
-下载某个具体的文件
-`http://127.0.0.1:8888/api/v1/file/download?filename=xxx.jpg
-`
-当您使用 wget 命令下载文件时，文件的名称由请求 URL 中的文件名部分确定。由于 URL 参数的存在，wget 命令可能会将整个 URL 当做文件名。
-为了确保下载的文件名正确，您可以使用 -O 参数来指定文件名：
+下载某个特定文件:
 ```bash
 wget -O syslog222 http://{{ip}}:{{port}}/api/v1/file/download?filename=syslog222
 ```
-
-获取某个文件的信息，包括md5
-`http://{{ip}}:{{port}}/api/v1/file/fileInfo?name=FlF9mrjXgAAZHon.jpg
-`
+当您使用 wget 命令下载文件时，文件的名称由请求 URL 中的文件名部分确定。由于 URL 参数的存在，wget 命令可能会将整个 URL 当做文件名。
+为了确保下载的文件名正确，您可以使用 -O 参数来指定文件名：
 
 ### p2p相关接口
 需要配置文件开启p2p功能，默认关闭
