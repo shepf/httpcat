@@ -33,6 +33,9 @@ GOOS=windows GOARCH=amd64 go build \
 cp -r server/conf release/
 cp -r static release/
 cp -r httpcat.service release/
+cp -r README.md release/
+mkdir -p release/translations
+cp -rf translations/* release/translations/
 
 # Create release archive for Linux
 cd release
