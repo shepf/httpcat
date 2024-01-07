@@ -23,6 +23,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -561,7 +562,6 @@ type UploadLogModel struct {
 
 func uploadHistoryLogs(c *gin.Context) {
 	// 获取前端传递的分页参数
-	// 获取前端传递的分页参数
 	var params struct {
 		Current  int    `form:"current" binding:"required"`
 		PageSize int    `form:"pageSize" binding:"required"`
@@ -570,8 +570,6 @@ func uploadHistoryLogs(c *gin.Context) {
 		IP       string `form:"ip"`
 		AppKey   string `form:"appkey"`
 	}
-	// c.ShouldBindQuery 是 Gin 框架中的一个方法，用于将请求中的查询字符串参数绑定到指定的结构体中。
-	// 它会根据结构体字段的标签和查询字符串参数的键名进行匹配和绑定。
 	if err := c.ShouldBindQuery(&params); err != nil {
 		ylog.Errorf("uploadHistoryLogs", "请求参数错误", err.Error())
 		common.CreateResponse(c, common.ParamInvalidErrorCode, err.Error())
@@ -580,7 +578,6 @@ func uploadHistoryLogs(c *gin.Context) {
 
 	// 查询数据库获取分页数据
 	var logs []UploadLogModel
-	// 根据 params.Current 和 params.PageSize 进行分页查询，并将结果赋值给 logs
 	dbPath := common.SqliteDBPath
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
@@ -609,8 +606,34 @@ func uploadHistoryLogs(c *gin.Context) {
 		return
 	}
 
-	common.CreateResponse(c, common.SuccessCode, logs)
+	// 查询总共的数据条数
+	var total int64
+	query = db.Table("t_upload_log")
+	if params.FileName != "" {
+		query = query.Where("filename LIKE ?", "%"+params.FileName+"%")
+	}
+	if params.FileMD5 != "" {
+		query = query.Where("file_md5 = ?", params.FileMD5)
+	}
+	if params.IP != "" {
+		query = query.Where("ip = ?", params.IP)
+	}
+	if params.AppKey != "" {
+		query = query.Where("appkey = ?", params.AppKey)
+	}
+	err = query.Count(&total).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
+	// 将分页信息和对应的数据一起返回给前端
+	common.CreateResponse(c, common.SuccessCode, gin.H{
+		"list":     logs,
+		"current":  params.Current,
+		"pageSize": params.PageSize,
+		"total":    total,
+	})
 }
 
 func deleteHistoryLogs(c *gin.Context) {
@@ -665,6 +688,20 @@ func sendP2pMessage(c *gin.Context) {
 	// Publish a message to the topic
 	publishMessage(c, topic, message)
 
+}
+
+// todo 暂时不用，前端生成AppSecret
+func generateAppSecret(c *gin.Context) {
+	// 生成随机数
+	rand.Seed(time.Now().UnixNano())
+	randomNumber := strconv.Itoa(rand.Intn(1000000))
+
+	// 计算 MD5 哈希值
+	hasher := md5.New()
+	hasher.Write([]byte(randomNumber))
+	hash := hex.EncodeToString(hasher.Sum(nil))
+
+	common.CreateResponse(c, common.SuccessCode, hash)
 }
 
 func saveUploadToken(c *gin.Context) {

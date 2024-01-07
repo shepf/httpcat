@@ -66,9 +66,9 @@ func RegisterRouter(r *gin.Engine) {
 			//	userRouter.POST("/update", v1.UpdateUser)
 			//	userRouter.POST("/resetPassword", v1.ResetPassword)
 			//	userRouter.POST("/checkUser", v1.CheckPassword)
+			userRouter.GET("/generateAppSecret", generateAppSecret)
 			userRouter.POST("/saveUploadToken", saveUploadToken)
 			userRouter.DELETE("/removeUploadToken", removeUploadToken)
-
 			userRouter.GET("/uploadTokenLists", getUploadTokenLists)
 			userRouter.POST("/createUploadToken", createUploadToken)
 			userRouter.POST("/checkUploadToken", checkUploadToken)
