@@ -72,6 +72,12 @@ func RegisterRouter(r *gin.Engine) {
 			userRouter.GET("/uploadTokenLists", getUploadTokenLists)
 			userRouter.POST("/createUploadToken", createUploadToken)
 			userRouter.POST("/checkUploadToken", checkUploadToken)
+
+			// 统计信息
+			// 数据概览 Data Overview
+			userRouter.GET("/dataOverview", dataOverview)
+			userRouter.GET("/getUploadAvailableSpace", getUploadAvailableSpace)
+
 		}
 
 		if common.FileEnable {

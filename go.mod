@@ -11,6 +11,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.18
 	github.com/prometheus/client_golang v1.17.0
 	github.com/rs/xid v1.5.0
+	github.com/shirou/gopsutil v2.21.11+incompatible
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.17.0
 	go.mongodb.org/mongo-driver v1.13.1
@@ -35,6 +36,7 @@ require (
 	github.com/frankban/quicktest v1.14.5 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
+	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.11.1 // indirect
@@ -114,6 +116,7 @@ require (
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
+	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.uber.org/dig v1.17.1 // indirect
 	go.uber.org/fx v1.20.1 // indirect
 	go.uber.org/mock v0.3.0 // indirect

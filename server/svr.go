@@ -18,6 +18,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/shirou/gopsutil/disk"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"io"
@@ -909,4 +910,42 @@ func checkUploadToken(c *gin.Context) {
 
 	common.CreateResponse(c, common.SuccessCode, "UploadToken is valid")
 
+}
+
+// 数据概览
+func dataOverview(c *gin.Context) {
+	dir := common.UploadDir
+
+	usedSpace, availableSpace, _ := getDiskUsage(dir)
+
+	// 将空间信息返回给客户端
+	c.JSON(http.StatusOK, gin.H{
+		"used_space":      usedSpace,
+		"available_space": availableSpace,
+	})
+}
+
+func getUploadAvailableSpace(c *gin.Context) {
+	dir := common.UploadDir
+
+	usedSpace, freeSpace, _ := getDiskUsage(dir)
+
+	// 将空间信息返回给客户端
+	c.JSON(http.StatusOK, gin.H{
+		"usedSpace": formatSize(int64(usedSpace)),
+		"freeSpace": formatSize(int64(freeSpace)),
+	})
+}
+
+func getDiskUsage(path string) (uint64, uint64, error) {
+	//disk.Usage() 函数来获取指定路径的磁盘使用情况
+	usage, err := disk.Usage(path)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	usedSpace := usage.Used
+	freeSpace := usage.Free
+
+	return usedSpace, freeSpace, nil
 }

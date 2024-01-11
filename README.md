@@ -308,5 +308,5 @@ rm xxx/sqlite.db
 3. This software is provided "as is" without any warranties or liabilities.
 4. By using this software, you indicate that you have accepted this license agreement.
 
-Good luck! 🍀
+Welcome to follow our GitHub project, ✨star it to stay updated with our real-time developments. Good luck! 🍀
 

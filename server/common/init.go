@@ -108,6 +108,23 @@ func initDefault() {
 	EnablePubSub = UserConfig.GetBool("server.p2p.pubsub.enable")
 	TopicName = UserConfig.GetString("server.p2p.pubsub.topic_name")
 
+	// 程序启动时候，判断上传下载目录是否存在，如果不存在则创建
+	// 判断目录是否存在，如果不存在则创建
+	if _, err := os.Stat(UploadDir); os.IsNotExist(err) {
+		err := os.MkdirAll(UploadDir, 0755)
+		if err != nil {
+			ylog.Errorf("initDefault", "创建UploadDir目录失败", err)
+			panic(err)
+		}
+	}
+	if _, err := os.Stat(DownloadDir); os.IsNotExist(err) {
+		err := os.MkdirAll(DownloadDir, 0755)
+		if err != nil {
+			ylog.Errorf("initDefault", "创建DownloadDir目录失败", err)
+			panic(err)
+		}
+	}
+
 }
 
 func initLog() {
