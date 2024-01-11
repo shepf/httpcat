@@ -932,8 +932,8 @@ func getUploadAvailableSpace(c *gin.Context) {
 
 	// 将空间信息返回给客户端
 	c.JSON(http.StatusOK, gin.H{
-		"usedSpace": formatSize(int64(usedSpace)),
-		"freeSpace": formatSize(int64(freeSpace)),
+		"usedSpace": usedSpace,
+		"freeSpace": freeSpace,
 	})
 }
 
