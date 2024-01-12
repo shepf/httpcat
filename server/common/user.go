@@ -285,3 +285,28 @@ func InitializeUploadTokenTable(db *gorm.DB) {
 		}
 	}
 }
+
+type DownloadLogModel struct {
+	ID           int    `gorm:"primarykey"`
+	IP           string `gorm:"column:ip"`
+	AppKey       string `gorm:"column:appkey"`
+	DownloadTime string `gorm:"column:download_time"`
+	FileName     string `gorm:"column:filename"`
+	FileSize     string `gorm:"column:file_size"`
+	FileMD5      string `gorm:"column:file_md5"`
+	CreatedTime  string `gorm:"column:created_time"`
+	ModifiedTime string `gorm:"column:modified_time"`
+}
+
+// 指定表名
+func (DownloadLogModel) TableName() string {
+	return "t_download_log"
+}
+
+func InitializeDownloadLogTable(db *gorm.DB) {
+	err := db.AutoMigrate(&DownloadLogModel{})
+	if err != nil {
+		ylog.Errorf("initDB", "create download_logs table failed, err:%v", err)
+		return
+	}
+}

@@ -196,6 +196,9 @@ func initDB() {
 		InitializeUploadTokenTable(db)
 		InitUploadToken()
 
+		// 创建 download_logs 表（如果不存在）
+		InitializeDownloadLogTable(db)
+
 		ylog.Infof("initDB", "init end~")
 	}
 

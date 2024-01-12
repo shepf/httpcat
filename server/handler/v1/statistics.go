@@ -10,12 +10,6 @@ import (
 	"time"
 )
 
-func GetDownloadStatistics(c *gin.Context) {
-
-	common.CreateResponse(c, common.SuccessCode, nil)
-
-}
-
 func GetUploadStatistics(c *gin.Context) {
 	dbPath := common.SqliteDBPath
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
@@ -100,4 +94,84 @@ func formatPercentage(percentage float64) string {
 		sign = "-"
 	}
 	return fmt.Sprintf("%s%.2f%%", sign, percentage)
+}
+
+// Path: server\handler\v1\statistics.go
+func GetDownloadStatistics(c *gin.Context) {
+	dbPath := common.SqliteDBPath
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	db.Debug()
+
+	// 统计信息
+	todayDownloadCount := getTodayDownloadCount(db)
+	yesterdayDownloadCount := getYesterdayDownloadCount(db)
+	monthDownloadCount := getMonthDownloadCount(db)
+	lastMonthDownloadCount := getLastMonthDownloadCount(db)
+	totalDownloadCount := getTotalDownloadCount(db)
+
+	// 计算百分比
+	var todayPercentage string
+	if yesterdayDownloadCount == 0 {
+		todayPercentage = "0%"
+	} else {
+		percentage := float64(todayDownloadCount-yesterdayDownloadCount) / float64(yesterdayDownloadCount) * 100
+		todayPercentage = formatPercentage(percentage)
+	}
+
+	var monthPercentage string
+	if lastMonthDownloadCount == 0 {
+		monthPercentage = "0%"
+	} else {
+		percentage := float64(monthDownloadCount-lastMonthDownloadCount) / float64(lastMonthDownloadCount) * 100
+		monthPercentage = formatPercentage(percentage)
+	}
+
+	// 将统计信息返回给前端
+	common.CreateResponse(c, common.SuccessCode, gin.H{
+		"todayDownloadCount": todayDownloadCount,
+		"todayPercentage":    todayPercentage,
+		"monthDownloadCount": monthDownloadCount,
+		"monthPercentage":    monthPercentage,
+		"totalDownloadCount": totalDownloadCount,
+	})
+}
+
+func getTodayDownloadCount(db *gorm.DB) int64 {
+	var count int64
+	today := time.Now().Format("2006-01-02")
+	db.Model(&common.DownloadLogModel{}).Where("download_time >= ?", today).Count(&count)
+	return count
+}
+
+func getYesterdayDownloadCount(db *gorm.DB) int64 {
+	var count int64
+	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	today := time.Now().Format("2006-01-02")
+	db.Model(&common.DownloadLogModel{}).Where("download_time >= ? AND download_time < ?", yesterday, today).Count(&count)
+	return count
+}
+
+func getMonthDownloadCount(db *gorm.DB) int64 {
+	var count int64
+	firstDayOfMonth := time.Now().AddDate(0, 0, -time.Now().Day()+1).Format("2006-01-02")
+	db.Model(&common.DownloadLogModel{}).Where("download_time >= ?", firstDayOfMonth).Count(&count)
+	return count
+}
+
+func getLastMonthDownloadCount(db *gorm.DB) int64 {
+	var count int64
+	firstDayOfLastMonth := time.Now().AddDate(0, -1, -time.Now().Day()+1).Format("2006-01-02")
+	lastDayOfLastMonth := time.Now().AddDate(0, 0, -time.Now().Day()).Format("2006-01-02")
+	db.Model(&common.DownloadLogModel{}).Where("download_time >= ? AND download_time <= ?", firstDayOfLastMonth, lastDayOfLastMonth).Count(&count)
+	return count
+}
+
+func getTotalDownloadCount(db *gorm.DB) int64 {
+	var count int64
+	db.Model(&common.DownloadLogModel{}).Count(&count)
+	return count
 }
