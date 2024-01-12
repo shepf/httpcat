@@ -81,6 +81,14 @@ func RegisterRouter(r *gin.Engine) {
 
 		}
 
+		// 统计信息
+		// 数据概览 Data Overview
+		statisticsRouter := apiv1Group.Group("/statistics")
+		{
+			statisticsRouter.GET("/getUploadStatistics", v1.GetUploadStatistics)
+			statisticsRouter.GET("/getDownloadStatistics", v1.GetDownloadStatistics)
+		}
+
 		// 文件操作相关接口
 		fileRouter := apiv1Group.Group("/file")
 		{
