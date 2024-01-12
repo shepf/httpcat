@@ -86,7 +86,7 @@ func initDefault() {
 	HttpAkSkMap = UserConfig.GetStringMapString("server.http.auth.aksk")
 
 	// for 业务
-	FileEnable = UserConfig.GetBool("server.http.file.enable")
+	FileUploadEnable = UserConfig.GetBool("server.http.file.upload_enable")
 	EnableUploadToken = UserConfig.GetBool("server.http.file.enable_upload_token")
 	AppKey = UserConfig.GetString("server.http.file.app_key")
 	AppSecret = UserConfig.GetString("server.http.file.app_secret")

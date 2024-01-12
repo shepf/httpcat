@@ -230,6 +230,12 @@ func getDirConf(c *gin.Context) {
 }
 
 func uploadFile(c *gin.Context) {
+
+	if !common.FileUploadEnable {
+		common.CreateResponse(c, common.ErrorCode, "File service is not enabled")
+		return
+	}
+
 	// FormFile方法会读取参数“upload”后面的文件名，返回值是一个File指针，和一个FileHeader指针，和一个err错误。
 	file, header, err := c.Request.FormFile("f1")
 	if err != nil {

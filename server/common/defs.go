@@ -37,7 +37,7 @@ var (
 	StaticDir           string
 	UploadDir           string
 	DownloadDir         string
-	FileEnable          bool // 决定是否注册file路由，false：就只能做http服务使用 true：文件上传下载等功能
+	FileUploadEnable    bool //
 	EnableUploadToken   bool //是否开启文件上传token校验
 	AppKey              string
 	AppSecret           string

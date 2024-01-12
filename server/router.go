@@ -51,6 +51,7 @@ func RegisterRouter(r *gin.Engine) {
 		confRouter := apiv1Group.Group("/conf")
 		{
 			confRouter.GET("/getVersion", v1.GetVersion)
+			confRouter.GET("/confInfo", v1.GetConfInfo)
 
 		}
 
@@ -80,30 +81,27 @@ func RegisterRouter(r *gin.Engine) {
 
 		}
 
-		if common.FileEnable {
-			ylog.Infof("[ROUTE]", "httpcat 开启 文件上传下载功能")
-			// 文件操作相关接口
-			fileRouter := apiv1Group.Group("/file")
-			{
-				//获取配置文件中的上传下载目录配置
-				fileRouter.GET("/getDirConf", getDirConf)
-				fileRouter.POST("/upload", uploadFile)
-				//使用实现 API 方式进行文件下载,而不是直接通过 StaticFS 暴露文件：
-				//原因是:
-				//1. StaticFS 更适合提供静态资源文件的访问,这些文件通常对所有用户都是公开的,不需要鉴权。
-				//2. 对于需要权限控制的文件下载,实现 API 方式更合适,可以方便地在代码中添加鉴权逻辑。
-				fileRouter.GET("/download", downloadFile)
-				// 获取目录文件列表
-				fileRouter.GET("/listFiles", listFiles)
-				// 获取某个文件的信息
-				fileRouter.GET("/fileInfo", fileInfo)
+		// 文件操作相关接口
+		fileRouter := apiv1Group.Group("/file")
+		{
+			//获取配置文件中的上传下载目录配置
+			fileRouter.GET("/getDirConf", getDirConf)
+			fileRouter.POST("/upload", uploadFile)
+			//使用实现 API 方式进行文件下载,而不是直接通过 StaticFS 暴露文件：
+			//原因是:
+			//1. StaticFS 更适合提供静态资源文件的访问,这些文件通常对所有用户都是公开的,不需要鉴权。
+			//2. 对于需要权限控制的文件下载,实现 API 方式更合适,可以方便地在代码中添加鉴权逻辑。
+			fileRouter.GET("/download", downloadFile)
+			// 获取目录文件列表
+			fileRouter.GET("/listFiles", listFiles)
+			// 获取某个文件的信息
+			fileRouter.GET("/fileInfo", fileInfo)
 
-				//获取上传文件历史记录
-				fileRouter.GET("/uploadHistoryLogs", uploadHistoryLogs)
-				// 删除上传历史记录
-				fileRouter.DELETE("/uploadHistoryLogs", deleteHistoryLogs)
+			//获取上传文件历史记录
+			fileRouter.GET("/uploadHistoryLogs", uploadHistoryLogs)
+			// 删除上传历史记录
+			fileRouter.DELETE("/uploadHistoryLogs", deleteHistoryLogs)
 
-			}
 		}
 
 		if common.P2pEnable {

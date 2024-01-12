@@ -110,3 +110,25 @@ func Unauthorized(c *gin.Context, msg string) {
 		response,
 	)
 }
+
+// 创建符合 Ant Design 前端要求的响应。这些函数将数据转换为 AntResponseData 结构，并将其作为 JSON 响应发送给前端
+type AntResponseData struct {
+	Data    interface{} `json:"data"`
+	Success bool        `json:"success"`
+}
+
+func CreateAntResponse(c *gin.Context, code int, data interface{}) {
+	var response AntResponseData
+	response.Data = data
+	response.Success = (code == SuccessCode)
+
+	c.JSON(http.StatusOK, response)
+}
+
+func CreateAntErrorResponse(c *gin.Context, code int, msg string) {
+	var response AntResponseData
+	response.Data = nil
+	response.Success = false
+
+	c.JSON(http.StatusOK, response)
+}

@@ -25,7 +25,7 @@ server:
     ssl:
       enable: false
     file:
-      enable: true
+      upload_enable: true
       enable_upload_token: true # 是否开启上传专用token验证，开启后支持上传策略upload_policy配置生效
       app_key: "httpcat" # 上传授权的app_key
       app_secret: "httpcat_app_secret" # 上传授权的app_secret
