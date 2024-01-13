@@ -51,7 +51,7 @@ func RegisterRouter(r *gin.Engine) {
 		confRouter := apiv1Group.Group("/conf")
 		{
 			confRouter.GET("/getVersion", v1.GetVersion)
-			confRouter.GET("/confInfo", v1.GetConfInfo)
+			confRouter.GET("/getConf", v1.GetConfInfo)
 
 		}
 
