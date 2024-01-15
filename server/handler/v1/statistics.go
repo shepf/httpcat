@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"math"
 	"net/http"
 	"time"
 )
@@ -34,6 +35,7 @@ func GetUploadStatistics(c *gin.Context) {
 		percentage := float64(todayUploadCount-yesterdayUploadCount) / float64(yesterdayUploadCount) * 100
 		todayPercentage = formatPercentage(percentage)
 	}
+	fmt.Println("todayPercentage:", todayPercentage)
 
 	var monthPercentage string
 	if lastMonthUploadCount == 0 {
@@ -45,11 +47,13 @@ func GetUploadStatistics(c *gin.Context) {
 
 	// 将统计信息返回给前端
 	common.CreateResponse(c, common.SuccessCode, gin.H{
-		"todayUploadCount": todayUploadCount,
-		"todayPercentage":  todayPercentage,
-		"monthUploadCount": monthUploadCount,
-		"monthPercentage":  monthPercentage,
-		"totalUploadCount": totalUploadCount,
+		"todayUploadCount":     todayUploadCount,
+		"yesterdayUploadCount": yesterdayUploadCount,
+		"todayPercentage":      todayPercentage,
+		"monthUploadCount":     monthUploadCount,
+		"lastMonthUploadCount": lastMonthUploadCount,
+		"monthPercentage":      monthPercentage,
+		"totalUploadCount":     totalUploadCount,
 	})
 
 }
@@ -92,8 +96,11 @@ func formatPercentage(percentage float64) string {
 		sign = "+"
 	} else if percentage < 0 {
 		sign = "-"
+	} else {
+		return "0%"
 	}
-	return fmt.Sprintf("%s%.2f%%", sign, percentage)
+	// 去掉 percentage 本身的负数，格式化时候再加上，否则会出现 --xx% 的情况
+	return fmt.Sprintf("%s%.2f%%", sign, math.Abs(percentage))
 }
 
 // Path: server\handler\v1\statistics.go
@@ -132,11 +139,13 @@ func GetDownloadStatistics(c *gin.Context) {
 
 	// 将统计信息返回给前端
 	common.CreateResponse(c, common.SuccessCode, gin.H{
-		"todayDownloadCount": todayDownloadCount,
-		"todayPercentage":    todayPercentage,
-		"monthDownloadCount": monthDownloadCount,
-		"monthPercentage":    monthPercentage,
-		"totalDownloadCount": totalDownloadCount,
+		"todayDownloadCount":     todayDownloadCount,
+		"yesterdayDownloadCount": yesterdayDownloadCount, // 昨天下载量
+		"todayPercentage":        todayPercentage,
+		"monthDownloadCount":     monthDownloadCount,
+		"lastMonthDownloadCount": lastMonthDownloadCount, // 上个月下载量
+		"monthPercentage":        monthPercentage,
+		"totalDownloadCount":     totalDownloadCount,
 	})
 }
 
