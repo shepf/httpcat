@@ -10,6 +10,7 @@ import (
 	"gin_web_demo/server/common"
 	"gin_web_demo/server/common/utils"
 	"gin_web_demo/server/common/ylog"
+	"gin_web_demo/server/models"
 	"gin_web_demo/server/p2p"
 	"gin_web_demo/server/storage"
 	"gin_web_demo/server/storage/auth"
@@ -317,6 +318,8 @@ func uploadFile(c *gin.Context) {
 	fileInfo, _ := os.Stat(filePath)
 	fileSize := formatSize(fileInfo.Size())
 	fileMD5, _ := utils.CalculateMD5(filePath)
+	fileCreatedTime := fileInfo.ModTime().Unix()  // 文件创建时间的时间戳
+	fileModifiedTime := fileInfo.ModTime().Unix() // 文件修改时间的时间戳
 
 	fmt.Println("PersistentNotifyURL:", common.PersistentNotifyURL)
 	// 上传成功后，发送通知
@@ -339,13 +342,14 @@ func uploadFile(c *gin.Context) {
 	// 是否sqlite记录
 	if common.EnableSqlite {
 		ylog.Infof("uploadFile", "sqliteInsert enable")
-		go sqliteInsert(Ip, appkey, uploadTime, filename, fileSize, fileMD5)
+		go sqliteInsert(Ip, appkey, uploadTime, filename, fileSize, fileMD5, fileCreatedTime, fileModifiedTime)
 	}
 
 	common.CreateResponse(c, common.SuccessCode, "upload successful!")
 }
 
-func sqliteInsert(Ip string, appkey string, uploadTime string, filename string, fileSize string, fileMD5 string) {
+func sqliteInsert(Ip string, appkey string, uploadTime string, filename string, fileSize string, fileMD5 string,
+	fileCreatedTime int64, fileModifiedTime int64) {
 	ylog.Infof("uploadFile", "sqliteInsert start")
 
 	// 读取 SQLite 数据库文件路径配置项
@@ -359,26 +363,12 @@ func sqliteInsert(Ip string, appkey string, uploadTime string, filename string, 
 	}
 	defer db.Close()
 
-	// 创建 t_upload_log 表（如果不存在）
-	_, err = db.Exec(`
-        CREATE TABLE IF NOT EXISTS t_upload_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ip TEXT,
-            appkey TEXT,
-            upload_time TEXT,
-            filename TEXT,
-            file_size TEXT,
-            file_md5 TEXT
-        );
-    `)
-	if err != nil {
-		ylog.Errorf("uploadFile", "create table failed, err:%v", err)
-		return
-	}
+	// 创建 t_upload_log 表（如果不存在）废弃，已移植到系统启动初始化阶段
 
 	// 将通知信息插入到 SQLite 数据库中
-	_, err = db.Exec("INSERT INTO t_upload_log (ip, appkey, upload_time, filename, file_size, file_md5) VALUES (?, ?, ?, ?, ?, ?)",
-		Ip, appkey, uploadTime, filename, fileSize, fileMD5)
+	_, err = db.Exec("INSERT INTO t_upload_log (ip, appkey, upload_time, filename, file_size, file_md5, "+
+		"file_created_time, file_modified_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		Ip, appkey, uploadTime, filename, fileSize, fileMD5, fileCreatedTime, fileModifiedTime)
 	if err != nil {
 		ylog.Errorf("uploadFile", "insert into db failed, err:%v", err)
 		return
@@ -502,8 +492,14 @@ func formatSize(size int64) string {
 	return fmt.Sprintf("%d B", size)
 }
 
-func fileInfo(c *gin.Context) {
-	fileName := c.Query("name")
+func getFileInfo(c *gin.Context) {
+	fileName := c.Query("filename")
+	fileMD5 := c.Query("file_md5")
+
+	if fileName == "" {
+		common.BadRequest(c, "filename is required")
+		return
+	}
 
 	// 检查文件路径
 	filePath := common.DownloadDir + fileName
@@ -514,7 +510,7 @@ func fileInfo(c *gin.Context) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			ylog.Errorf("文件不存在", "err:%v", err)
-			common.CreateResponse(c, common.ErrorCode, "File does not exist")
+			common.CreateResponse(c, common.FileIsNotExists, nil)
 		} else {
 			ylog.Errorf("获取文件信息失败", "err:%v", err)
 			common.CreateResponse(c, common.ErrorCode, "Failed to get file information")
@@ -547,24 +543,19 @@ func fileInfo(c *gin.Context) {
 
 	// 构建返回结果
 	fileEntry := make(map[string]interface{})
-	fileEntry["FileName"] = fileInfo.Name()
-	fileEntry["LastModified"] = fileInfo.ModTime().Format("2006-01-02 15:04:05")
-	fileEntry["Size"] = formatSize(fileInfo.Size())
-	fileEntry["MD5"] = md5Hash
+	fileEntry["fileName"] = fileInfo.Name()
+	fileEntry["lastModified"] = fileInfo.ModTime().Format("2006-01-02 15:04:05")
+	fileEntry["size"] = formatSize(fileInfo.Size())
+	fileEntry["md5"] = md5Hash
+	// 对比文件 MD5 值
+	if fileMD5 != "" && fileMD5 != md5Hash {
+		fileEntry["md5Match"] = false
+	} else {
+		fileEntry["md5Match"] = true
+	}
 
 	// 返回文件信息
 	common.CreateResponse(c, common.SuccessCode, fileEntry)
-}
-
-// 定义上传日志表结构
-type UploadLogModel struct {
-	ID         uint   `gorm:"primary_key" json:"id"`
-	IP         string `gorm:"column:ip" json:"ip"`
-	Appkey     string `gorm:"column:appkey" json:"appkey"`
-	UploadTime string `gorm:"column:upload_time" json:"upload_time"`
-	FileName   string `gorm:"column:filename" json:"filename"`
-	FileSize   string `gorm:"column:file_size" json:"file_size"`
-	FileMD5    string `gorm:"column:file_md5" json:"file_md5"`
 }
 
 func uploadHistoryLogs(c *gin.Context) {
@@ -584,7 +575,7 @@ func uploadHistoryLogs(c *gin.Context) {
 	}
 
 	// 查询数据库获取分页数据
-	var logs []UploadLogModel
+	var logs []models.UploadLogModel
 	dbPath := common.SqliteDBPath
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
@@ -661,7 +652,7 @@ func deleteHistoryLogs(c *gin.Context) {
 	}
 	db.Debug()
 
-	err = db.Table("t_upload_log").Where("id IN ?", ids).Delete(&UploadLogModel{}).Error
+	err = db.Table("t_upload_log").Where("id IN ?", ids).Delete(&models.UploadLogModel{}).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

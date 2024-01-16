@@ -103,7 +103,7 @@ func RegisterRouter(r *gin.Engine) {
 			// 获取目录文件列表
 			fileRouter.GET("/listFiles", listFiles)
 			// 获取某个文件的信息
-			fileRouter.GET("/fileInfo", fileInfo)
+			fileRouter.GET("/getFileInfo", getFileInfo)
 
 			//获取上传文件历史记录
 			fileRouter.GET("/uploadHistoryLogs", uploadHistoryLogs)

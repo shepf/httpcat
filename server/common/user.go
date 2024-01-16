@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gin_web_demo/server/common/ylog"
+	"gin_web_demo/server/models"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"io"
@@ -307,6 +308,14 @@ func InitializeDownloadLogTable(db *gorm.DB) {
 	err := db.AutoMigrate(&DownloadLogModel{})
 	if err != nil {
 		ylog.Errorf("initDB", "create download_logs table failed, err:%v", err)
+		return
+	}
+}
+
+func InitializeUploadLogTable(db *gorm.DB) {
+	err := db.AutoMigrate(&models.UploadLogModel{})
+	if err != nil {
+		ylog.Errorf("initDB", "create upload_logs table failed, err:%v", err)
 		return
 	}
 }

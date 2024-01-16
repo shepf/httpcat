@@ -199,6 +199,9 @@ func initDB() {
 		// 创建 download_logs 表（如果不存在）
 		InitializeDownloadLogTable(db)
 
+		// 创建 upload_logs 表（如果不存在）
+		InitializeUploadLogTable(db)
+
 		ylog.Infof("initDB", "init end~")
 	}
 
