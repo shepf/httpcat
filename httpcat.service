@@ -4,11 +4,15 @@ After=
 
 [Service]
 # 当 systemd 服务文件中配置了 User=root 后,服务进程看起来是以 root 用户运行,但实际上是在一个有限的沙箱环境中
-# systemd 默认会启用一些安全隔离机制,比如动态用户(DynamicUser)、私有临时文件系统(PrivateTmp)等
 # User=root
-Type=forking
+# Type=forking systemd认为当该服务进程fork，且父进程退出后服务启动成功。对于常规的守护进程（daemon），除非你确定此启动方式无法满足需求，使用此类型启动即可。
+# 使用此启动类型应同时指定 PIDFile=，以便 systemd 能够跟踪服务的主进程
+# 当类型为forking时，systemd会认为所运行当该服务本身是守护进程即本身会fork，且只有父进程退出后systemd才会退出，
+# 但由于我的程序并不是守护进程，故systemd一直处于阻塞等待状态
+Type=simple
 WorkingDirectory=/root
-ExecStart=/usr/local/bin/httpcat  --static=/home/web/website/httpcat_web/  --upload=/home/web/website/upload/ --download=/home/web/website/upload/  -C /etc/httpdcat/svr.yml
+# systemctl 命令默认会等待 ExecStart 指定的命令执行完成才返回
+ExecStart=/usr/local/bin/httpcat  --static=/home/web/website/httpcat_web/  --upload=/home/web/website/upload/ --download=/home/web/website/upload/  -C /etc/httpdcat/svr.yml  > /var/log/httpcat.log 2>&1 &
 # ExecStop=/opt/lighthouse/server/bin/start_scripts/lighthouse_service.sh stop >> /tmp/lighthouse_systemd.log
 Restart=always
 RestartSec=5

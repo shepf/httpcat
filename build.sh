@@ -13,7 +13,7 @@ go mod tidy
 # Build for Linux
 echo "Building for Linux"
 
-HTTPCAT_VERSION=v0.1.1
+HTTPCAT_VERSION=v0.1.2
 HTTPCAT_BUILD=$(date "+%Y%m%d%H%M")
 COMMIT_ID=$(git rev-parse HEAD)
 GOOS=linux GOARCH=amd64 go build \
@@ -36,6 +36,9 @@ cp -r httpcat.service release/
 cp -r README.md release/
 mkdir -p release/translations
 cp -rf translations/* release/translations/
+# copy install.sh
+cp -r install.sh release/
+chmod +x release/install.sh
 
 # Create release archive for Linux
 cd release

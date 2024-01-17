@@ -148,7 +148,7 @@ Alternatively, you can specify the directory using command-line parameters, such
 ```
 
 ### Frontend Deployment
-1. Download the standalone frontend release file, such as httpcat_web_v0.1.1.zip.
+1. Download the standalone frontend release file, such as httpcat_web_xxx.zip.
 2. Extract it to the web directory
     ```bash
        cd /home/web/website/
