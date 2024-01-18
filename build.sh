@@ -41,8 +41,8 @@ cp -r install.sh release/
 chmod +x release/install.sh
 
 # Create release archive for Linux
-cd release
-tar zcvf httpcat_$HTTPCAT_VERSION.tar.gz ./*
+tar zcvf httpcat_$HTTPCAT_VERSION.tar.gz release/*
+mv httpcat_$HTTPCAT_VERSION.tar.gz release/
 
 # Return to the root directory
 cd ..

@@ -11,6 +11,20 @@ HttpCat 是一个基于go实现的 HTTP 的文件传输服务，旨在提供简�
 * 无需外部依赖，易于移植
 
 ## 🎉安装
+### 快速安装
+v0.1.2版本以及之后版本，可以直接下载最新的httpcat安装包，解压后，直接运行install.sh即可。
+```bash
+mkdir target_directory
+tar -zxvf httpcat_v0.1.2.tar.gz -C target_directory
+```
+
+```bash
+cd target_directory/release
+./install.sh
+```
+
+当然，您也可以参考下面的安装步骤，手动安装，只是前端文件我们已经打包到安装包中，不需要单独下载前端文件。
+### v0.1.1版本以及之前版本安装
 1. 下载最新httpcat安装包
    `https://github.com/shepf/httpcat-release/tags`
 

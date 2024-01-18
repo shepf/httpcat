@@ -14,6 +14,26 @@ Please note that this translation is a direct translation and may require furthe
 * No external dependencies, easy to port
 
 ## 🎉Installation
+### Quick Installation
+Starting from version v0.1.2 and onwards, you can directly download the latest httpcat installation package.
+
+After extracting it, simply run the `install.sh` script to install.
+```bash
+mkdir target_directory
+tar -zxvf httpcat_v0.1.2.tar.gz -C target_directory
+```
+
+```bash
+cd target_directory/release
+./install.sh
+```
+
+Of course, you can also refer to the installation steps below for manual installation. 
+
+However, please note that the frontend files have already been packaged into the installation package, 
+so there is no need to separately download the frontend files.
+
+### For versions prior to v0.1.2
 1. Download the latest httpcat installation package.
    `https://github.com/shepf/httpcat-release/tags`
 
