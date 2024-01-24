@@ -62,6 +62,9 @@ func RegisterRouter(r *gin.Engine) {
 			userRouter.GET("/currentUser", v1.UserInfo)
 			userRouter.POST("/login/outLogin", v1.UserLoginout)
 			userRouter.POST("/changePasswd", v1.ChangePasswd)
+			//修改用户信息
+			//上传用户头像
+			userRouter.POST("/uploadAvatar", v1.UploadAvatar)
 
 			//	userRouter.POST("/del", v1.DelUser)
 			//	userRouter.POST("/update", v1.UpdateUser)

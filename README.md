@@ -15,12 +15,14 @@ Please note that this translation is a direct translation and may require furthe
 
 ## 🎉Installation
 ### Quick Installation
-Starting from version v0.1.2 and onwards, you can directly download the latest httpcat installation package.
+You can directly download the latest httpcat installation package.
 
 After extracting it, simply run the `install.sh` script to install.
+
 ```bash
+httpcat_version="v0.1.3"
 mkdir target_directory
-tar -zxvf httpcat_v0.1.2.tar.gz -C target_directory
+tar -zxvf httpcat_$httpcat_version.tar.gz -C target_directory
 ```
 
 ```bash

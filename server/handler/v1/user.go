@@ -2,6 +2,7 @@ package v1
 
 import (
 	"crypto/sha1"
+	"encoding/base64"
 	"fmt"
 	"gin_web_demo/server/common"
 	"gin_web_demo/server/common/ylog"
@@ -11,6 +12,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -195,4 +197,49 @@ func UserLoginout(c *gin.Context) {
 	//}
 
 	common.CreateResponse(c, common.SuccessCode, nil)
+}
+
+func UploadAvatar(c *gin.Context) {
+	// 获取当前登录用户名
+	username, _ := c.Get("user")
+	uploadedFile, err := c.FormFile("avatar")
+	if err != nil {
+		// 处理文件上传错误
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 打开上传的文件
+	file, err := uploadedFile.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer file.Close()
+
+	// 读取文件内容
+	fileBytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 将文件内容进行 Base64 编码
+	encodedString := base64.StdEncoding.EncodeToString(fileBytes)
+	// 更新用户的 Avatar 属性
+	dbPath := common.SqliteDBPath
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		// 处理数据库连接错误
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var user common.User
+	db.Where("username = ?", username.(string)).First(&user)
+	user.Avatar = encodedString
+	db.Save(&user)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Avatar uploaded successfully"})
+
 }
