@@ -21,7 +21,7 @@ function check_ipv4_address()
 }
 
 #处理安装脚本入参
-while getopts i:f option
+while getopts i:f:p option
 do
     case "$option" in
         i)
@@ -38,6 +38,9 @@ do
               fi
             fi
             echo "Input server ip address is $SERVER_IP";;
+        p)
+            SERVER_PORT=$OPTARG
+            echo "Input server port is $SERVER_PORT";;
         f)
             is_need_uninstall="true"
             echo "Need uninstall old data.";;
@@ -84,6 +87,12 @@ function httpcat::intall(){
 
   execute_cmd "cp httpcat /usr/local/bin/httpcat  -rf"
   execute_cmd "cp conf/svr.yml /etc/httpdcat/svr.yml  -rf"
+
+  # 如果SERVER_PORT不为空，修改配置/etc/httpdcat/svr.yml
+  if [ -n "$SERVER_PORT" ]; then
+    # 使用 sed 命令替换配置文件中 http 下的 port 值
+    sed -i '/^\(\s*http:\)/,/^  \(\s*\w\+\)\?:/ s/^\(\s*port:\s*\).*$/\1'"$SERVER_PORT"'/' /etc/httpdcat/svr.yml
+  fi
 
 
   cp httpcat.service /etc/systemd/system/httpcat.service  -rf

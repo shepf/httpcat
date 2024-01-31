@@ -1,7 +1,7 @@
 server:
   log:
     applog:
-      path: ./log/svr.log
+      path: ./log/httpcat.log
       loglevel: 0
   ssl:
     keyfile: ./conf/server.key
