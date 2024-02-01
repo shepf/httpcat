@@ -10,6 +10,13 @@ rm -rf release
 mkdir -p release
 go mod tidy
 
+# 检查前端文件是否存在
+if [ ! -f "dist.zip" ]; then
+  echo "dist.zip 文件不存在，请先执行 npm run build 命令,打包前端,再执行 build.sh"
+  exit 1
+fi
+cp dist.zip release/ -rf
+
 # Build for Linux
 echo "Building for Linux"
 

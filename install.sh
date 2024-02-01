@@ -20,8 +20,8 @@ function check_ipv4_address()
     fi
 }
 
-#处理安装脚本入参
-while getopts i:f:p option
+#处理安装脚本入参 ，getopts 命令需要指定选项参数后是否需要参数值，使用冒号 : 表示。
+while getopts i:f:p: option
 do
     case "$option" in
         i)
@@ -40,14 +40,16 @@ do
             echo "Input server ip address is $SERVER_IP";;
         p)
             SERVER_PORT=$OPTARG
-            echo "Input server port is $SERVER_PORT";;
+            echo "Input server port is $SERVER_PORT"
+            echo "Debug: SERVER_PORT = $SERVER_PORT";;
         f)
             is_need_uninstall="true"
             echo "Need uninstall old data.";;
         \?)
-            echo "Usage: ./httpcat_SERVER_V1.0.0.run [-i 1.1.1.1] [-f]"
+            echo "Usage: ./httpcat_SERVER_Vx.0.0.run [-i 1.1.1.1] [-f]"
             echo "-f means auto uninstall old httpcat"
             echo "-i means server ip address"
+            echo "-p means server port"
             exit 1;;
     esac
 done
