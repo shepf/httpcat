@@ -115,6 +115,18 @@ func RegisterRouter(r *gin.Engine) {
 
 		}
 
+		imageManageRouter := apiv1Group.Group("/imageManage")
+		{
+			imageManageRouter.POST("/upload", v1.UploadImage)
+			//文件改名
+			imageManageRouter.POST("/rename", v1.RenameImage)
+			//图片文件删除
+			imageManageRouter.DELETE("/delete", v1.DeleteImage)
+			// 下载图片
+			imageManageRouter.GET("/download", v1.DownloadImage)
+
+		}
+
 		if common.P2pEnable {
 			ylog.Infof("[ROUTE]", "httpcat 开启 P2P功能")
 			// 文件操作相关接口

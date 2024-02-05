@@ -319,3 +319,11 @@ func InitializeUploadLogTable(db *gorm.DB) {
 		return
 	}
 }
+
+func InitializeUploadImageTable(db *gorm.DB) {
+	err := db.AutoMigrate(&models.UploadImageModel{})
+	if err != nil {
+		ylog.Errorf("initDB", "create t_upload_image table failed, err:%v", err)
+		return
+	}
+}

@@ -316,7 +316,7 @@ func uploadFile(c *gin.Context) {
 	uploadTime := time.Now().Format("2006-01-02 15:04:05")
 	// 获取文件信息
 	fileInfo, _ := os.Stat(filePath)
-	fileSize := formatSize(fileInfo.Size())
+	fileSize := utils.FormatSize(fileInfo.Size())
 	fileMD5, _ := utils.CalculateMD5(filePath)
 	fileCreatedTime := fileInfo.ModTime().Unix()  // 文件创建时间的时间戳
 	fileModifiedTime := fileInfo.ModTime().Unix() // 文件修改时间的时间戳
@@ -458,38 +458,13 @@ func listFiles(c *gin.Context) {
 		fileEntry := make(map[string]interface{})
 		fileEntry["FileName"] = fileInfo.Name()
 		fileEntry["LastModified"] = fileInfo.ModTime().Format("2006-01-02 15:04:05")
-		fileEntry["Size"] = formatSize(fileInfo.Size())
+		fileEntry["Size"] = utils.FormatSize(fileInfo.Size())
 		fileList = append(fileList, fileEntry)
 	}
 
 	// 返回文件列表
 	common.CreateResponse(c, common.SuccessCode, fileList)
 
-}
-
-func formatSize(size int64) string {
-	const (
-		B = 1 << (10 * iota)
-		KB
-		MB
-		GB
-		TB
-		PB
-	)
-
-	switch {
-	case size >= PB:
-		return fmt.Sprintf("%.2f PB", float64(size)/PB)
-	case size >= TB:
-		return fmt.Sprintf("%.2f TB", float64(size)/TB)
-	case size >= GB:
-		return fmt.Sprintf("%.2f GB", float64(size)/GB)
-	case size >= MB:
-		return fmt.Sprintf("%.2f MB", float64(size)/MB)
-	case size >= KB:
-		return fmt.Sprintf("%.2f KB", float64(size)/KB)
-	}
-	return fmt.Sprintf("%d B", size)
 }
 
 func getFileInfo(c *gin.Context) {
@@ -545,7 +520,7 @@ func getFileInfo(c *gin.Context) {
 	fileEntry := make(map[string]interface{})
 	fileEntry["fileName"] = fileInfo.Name()
 	fileEntry["lastModified"] = fileInfo.ModTime().Format("2006-01-02 15:04:05")
-	fileEntry["size"] = formatSize(fileInfo.Size())
+	fileEntry["size"] = utils.FormatSize(fileInfo.Size())
 	fileEntry["md5"] = md5Hash
 	// 对比文件 MD5 值
 	if fileMD5 != "" && fileMD5 != md5Hash {

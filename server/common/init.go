@@ -202,6 +202,9 @@ func initDB() {
 		// 创建 upload_logs 表（如果不存在）
 		InitializeUploadLogTable(db)
 
+		// 创建 t_upload_image 表（如果不存在）
+		InitializeUploadImageTable(db)
+
 		ylog.Infof("initDB", "init end~")
 	}
 
