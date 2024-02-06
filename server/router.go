@@ -124,6 +124,8 @@ func RegisterRouter(r *gin.Engine) {
 			imageManageRouter.DELETE("/delete", v1.DeleteImage)
 			// 下载图片
 			imageManageRouter.GET("/download", v1.DownloadImage)
+			// 分页获取图片缩略图
+			imageManageRouter.GET("/listThumbImages", v1.GetThumbnails)
 
 		}
 

@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"encoding/base64"
 	"fmt"
 	"gin_web_demo/server/common"
 	"gin_web_demo/server/common/utils"
@@ -12,10 +13,12 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -69,7 +72,7 @@ func UploadImage(c *gin.Context) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	thumbImage = imaging.Resize(thumbImage, 100, 0, imaging.Lanczos) // 设置缩略图的宽度为 100
+	thumbImage = imaging.Resize(thumbImage, 250, 150, imaging.Lanczos) // 设置缩略图的宽度为 100
 	err = imaging.Save(thumbImage, thumbFilePath)
 	if err != nil {
 		log.Fatal(err)
@@ -98,6 +101,7 @@ func UploadImage(c *gin.Context) {
 			Size:          header.Size,
 			FileName:      filename,
 			FilePath:      filePath,
+			ThumbFilePath: thumbFilePath,
 			FileMD5:       fileMD5, // 计算文件的 MD5 值
 			DownloadCount: 0,
 			Sort:          1000,
@@ -210,4 +214,52 @@ func DownloadImage(c *gin.Context) {
 	c.Header("Content-Disposition", "attachment; filename="+filename)
 	c.Header("Content-Type", "application/octet-stream")
 	c.File(filePath)
+}
+
+func GetThumbnails(c *gin.Context) {
+	pageStr := c.DefaultQuery("page", "1")
+	pageSizeStr := c.DefaultQuery("pageSize", "12")
+
+	// 将字符串转换为整数
+	page, _ := strconv.Atoi(pageStr)
+	pageSize, _ := strconv.Atoi(pageSizeStr)
+
+	// 计算起始索引和结束索引
+	startIndex := (page - 1) * pageSize
+
+	dbPath := common.SqliteDBPath
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var thumbnails []models.UploadImageModel
+	db.Offset(startIndex).Limit(pageSize).Find(&thumbnails)
+
+	for i := range thumbnails {
+		thumbnailPath := thumbnails[i].ThumbFilePath
+
+		// 检查缩略图文件是否存在
+		_, err := os.Stat(thumbnailPath)
+		if os.IsNotExist(err) {
+			// 缩略图不存在，跳过当前循环
+			continue
+		}
+
+		// 读取缩略图文件
+		fileBytes, err := ioutil.ReadFile(thumbnailPath)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read thumbnail file"})
+			return
+		}
+
+		// 将缩略图文件转换为 Base64 格式
+		base64Image := base64.StdEncoding.EncodeToString(fileBytes)
+
+		// 将 Base64 缩略图赋值给字段
+		thumbnails[i].ThumbnailBase64 = base64Image
+	}
+
+	c.JSON(http.StatusOK, thumbnails)
 }
