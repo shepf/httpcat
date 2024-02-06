@@ -15,6 +15,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -216,16 +217,21 @@ func DownloadImage(c *gin.Context) {
 	c.File(filePath)
 }
 
+// 分页信息结构体
+type Pagination struct {
+	Page       int   `json:"page"`
+	PageSize   int   `json:"pageSize"`
+	TotalPages int   `json:"totalPages"` //表示总页数，即符合查询条件的数据总共可以分成多少页。它是根据总记录数（或总项数）和每页显示的项数来计算得出的。
+	TotalItems int64 `json:"totalItems"` // 表示总记录数或者总项数，即符合查询条件的所有数据项的数量
+}
+
 func GetThumbnails(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
-	pageSizeStr := c.DefaultQuery("pageSize", "12")
+	pageSizeStr := c.DefaultQuery("pageSize", "10")
 
 	// 将字符串转换为整数
 	page, _ := strconv.Atoi(pageStr)
 	pageSize, _ := strconv.Atoi(pageSizeStr)
-
-	// 计算起始索引和结束索引
-	startIndex := (page - 1) * pageSize
 
 	dbPath := common.SqliteDBPath
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
@@ -235,7 +241,13 @@ func GetThumbnails(c *gin.Context) {
 	}
 
 	var thumbnails []models.UploadImageModel
-	db.Offset(startIndex).Limit(pageSize).Find(&thumbnails)
+	var totalItems int64 // 声明 totalItems 变量并设置初始值为 0
+	db.Model(&models.UploadImageModel{}).Count(&totalItems)
+
+	// 计算总页数
+	totalPages := int(math.Ceil(float64(totalItems) / float64(pageSize)))
+
+	db.Offset((page - 1) * pageSize).Limit(pageSize).Find(&thumbnails)
 
 	for i := range thumbnails {
 		thumbnailPath := thumbnails[i].ThumbFilePath
@@ -261,5 +273,19 @@ func GetThumbnails(c *gin.Context) {
 		thumbnails[i].ThumbnailBase64 = base64Image
 	}
 
-	c.JSON(http.StatusOK, thumbnails)
+	// 构建包含分页信息的响应数据
+	response := struct {
+		Pagination Pagination                `json:"pagination"`
+		Data       []models.UploadImageModel `json:"data"`
+	}{
+		Pagination: Pagination{
+			Page:       page,
+			PageSize:   pageSize,
+			TotalPages: totalPages,
+			TotalItems: totalItems,
+		},
+		Data: thumbnails,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
