@@ -13,9 +13,9 @@ type UploadImageModel struct {
 	FileMD5         string `gorm:"column:file_md5"`
 	DownloadCount   int    `gorm:"column:download_count"`
 	Sort            int    `gorm:"column:sort"`
-	UploadTime      string `gorm:"column:upload_time"`
-	UploadIP        string `gorm:"column:upload_ip"`
-	UploadUser      string `gorm:"column:upload_user"`
+	UploadTime      string `gorm:"column:upload_time" json:"-"`
+	UploadIP        string `gorm:"column:upload_ip" json:"-"`
+	UploadUser      string `gorm:"column:upload_user" json:"-"`
 	Status          string `gorm:"column:status"`
 }
 
