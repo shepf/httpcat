@@ -122,6 +122,8 @@ func RegisterRouter(r *gin.Engine) {
 			imageManageRouter.POST("/rename", v1.RenameImage)
 			//图片文件删除
 			imageManageRouter.DELETE("/delete", v1.DeleteImage)
+			//清空照片
+			imageManageRouter.DELETE("/clear", v1.ClearImage)
 			// 下载图片
 			imageManageRouter.GET("/download", v1.DownloadImage)
 			// 分页获取图片缩略图

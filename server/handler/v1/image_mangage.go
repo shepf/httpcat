@@ -53,6 +53,14 @@ func UploadImage(c *gin.Context) {
 		}
 	}
 
+	// 判断文件是否存在
+	_, err = os.Stat(filePath)
+	if err == nil {
+		// 文件已存在
+		common.CreateResponse(c, common.ErrorCode, "File already exists")
+		return
+	}
+
 	ylog.Infof("uploadFile", "upload file to: %s", filePath)
 	// 创建一个文件，文件名为filename，这里的返回值out也是一个File指针
 	out, err := os.Create(filePath)
@@ -83,6 +91,7 @@ func UploadImage(c *gin.Context) {
 	uploadTime := time.Now().Format("2006-01-02 15:04:05")
 	// 获取文件信息
 	fileMD5, _ := utils.CalculateMD5(filePath)
+	fileUUID := uuid.NewV4().String()
 
 	//// 是否sqlite记录
 	if common.EnableSqlite {
@@ -98,7 +107,7 @@ func UploadImage(c *gin.Context) {
 
 		// 保存图片信息到数据库
 		image := models.UploadImageModel{
-			FileUUID:      uuid.NewV4().String(),
+			FileUUID:      fileUUID,
 			Size:          header.Size,
 			FileName:      filename,
 			FilePath:      filePath,
@@ -121,8 +130,9 @@ func UploadImage(c *gin.Context) {
 		"errorCode": common.SuccessCode,
 		"msg":       "upload successful!",
 		"data": map[string]interface{}{
-			"name":   filename,
-			"status": "done",
+			"fileUUID": fileUUID,
+			"name":     filename,
+			"status":   "done",
 			// 通常情况下，上传成功后前端需要再次请求图片的 URL 来展示图片。
 			// 在上传成功后，后端会返回图片的 URL，前端可以使用这个 URL 来获取图片数据，并将其展示在页面上。
 			"url":         "/api/v1/imageManage/download?filename=" + filename,
@@ -171,17 +181,38 @@ func DeleteImage(c *gin.Context) {
 	// 获取请求参数
 	filename := c.Query("filename")
 
-	// 构建图片文件的完整路径
-	filePath := filepath.Join(common.UploadDir, "images", filename)
-
-	// 判断文件是否存在
-	_, err := os.Stat(filePath)
-	if os.IsNotExist(err) {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "文件不存在",
+	// 从数据库中删除相应记录
+	dbPath := common.SqliteDBPath
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "数据库连接失败",
 		})
 		return
 	}
+
+	// 删除数据库中的记录
+	var image models.UploadImageModel
+	err = db.Where("file_name = ?", filename).First(&image).Error
+	//如果您使用的是 GORM，默认启用了软删除功能，即通过将 deleted_at 字段设置为非空来标记删除的记录。
+	//这就是为什么在执行 db.Delete(&image) 后，实际上只是更新了 deleted_at 字段而不是真正删除记录。
+	if err == nil {
+		//db.Delete(&image)
+		//如果您想要完全删除记录而不是软删除，可以使用 Unscoped() 方法来删除记录。
+		db.Unscoped().Delete(&image)
+	}
+
+	// 构建图片文件的完整路径
+	filePath := filepath.Join(common.UploadDir, "images", filename)
+
+	//// 判断文件是否存在
+	//_, err = os.Stat(filePath)
+	//if os.IsNotExist(err) {
+	//	c.JSON(http.StatusBadRequest, gin.H{
+	//		"message": "文件不存在",
+	//	})
+	//	return
+	//}
 
 	// 删除文件
 	err = os.Remove(filePath)
@@ -194,6 +225,45 @@ func DeleteImage(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "图片删除成功",
+	})
+}
+
+func ClearImage(c *gin.Context) {
+
+	// 清空数据库中的记录
+	dbPath := common.SqliteDBPath
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		ylog.Errorf("clearImage", "数据库连接失败", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "数据库连接失败",
+		})
+		return
+	}
+
+	// 清空数据库中的记录
+	err = db.Exec("DELETE FROM t_upload_image").Error
+	if err != nil {
+		ylog.Errorf("clearImage", "清空数据库记录失败", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "清空照片失败",
+		})
+		return
+	}
+
+	// 删除图片文件夹下的所有文件
+	dirPath := filepath.Join(common.UploadDir, "images")
+	err = os.RemoveAll(dirPath)
+	if err != nil {
+		ylog.Errorf("clearImage", "清空照片失败", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "清空照片失败",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "照片清空成功",
 	})
 }
 
