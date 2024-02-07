@@ -57,7 +57,7 @@ func UploadImage(c *gin.Context) {
 	_, err = os.Stat(filePath)
 	if err == nil {
 		// 文件已存在
-		common.CreateResponse(c, common.ErrorCode, "File already exists")
+		common.BadRequest(c, "File already exists")
 		return
 	}
 
@@ -317,7 +317,7 @@ func GetThumbnails(c *gin.Context) {
 	// 计算总页数
 	totalPages := int(math.Ceil(float64(totalItems) / float64(pageSize)))
 
-	db.Offset((page - 1) * pageSize).Limit(pageSize).Find(&thumbnails)
+	db.Order("created_at desc, download_count desc").Offset((page - 1) * pageSize).Limit(pageSize).Find(&thumbnails)
 
 	for i := range thumbnails {
 		thumbnailPath := thumbnails[i].ThumbFilePath
