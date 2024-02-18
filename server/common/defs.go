@@ -3,10 +3,13 @@ package common
 import (
 	"github.com/spf13/viper"
 	"os"
+	"time"
 )
 
 var (
 	Sig = make(chan os.Signal, 1)
+
+	StartTime time.Time // 程序启动时间
 
 	UserConfig *viper.Viper
 	ConfPath   string

@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 var (
@@ -61,6 +62,8 @@ func initConfig() {
 func initDefault() {
 	// 打印初始化
 	fmt.Println("####初始化:", "initDefault")
+	// 在应用程序启动时记录起始时间
+	StartTime = time.Now()
 
 	SSLKeyFile = UserConfig.GetString("server.ssl.keyfile")
 	SSLCertFile = UserConfig.GetString("server.ssl.certfile")

@@ -5,17 +5,18 @@ import (
 	"gin_web_demo/server/common"
 	"github.com/gin-gonic/gin"
 	"github.com/shirou/gopsutil/process"
-	"log"
-	"os"
 	"time"
 )
 
 func GetVersion(c *gin.Context) {
-	pid := os.Getpid()
-	uptime, err := getProcessUptime(pid)
-	if err != nil {
-		log.Fatalf("Failed to get process uptime: %v", err)
-	}
+	//在处理HTTP请求时获取进程的创建时间，它只会反映当前goroutine的创建时间，而不是整个应用程序的启动时间
+	//pid := os.Getpid()
+	//uptime, err := getProcessUptime(pid)
+	//
+	//if err != nil {
+	//	log.Fatalf("Failed to get process uptime: %v", err)
+	//}
+	uptime := time.Since(common.StartTime)
 
 	uptimeString := formatDuration(uptime)
 	fmt.Printf("Process uptime: %s\n", uptimeString)
