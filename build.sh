@@ -20,7 +20,7 @@ cp dist.zip release/ -rf
 # Build for Linux
 echo "Building for Linux"
 
-HTTPCAT_VERSION=v0.1.3
+HTTPCAT_VERSION=v0.1.4
 HTTPCAT_BUILD=$(date "+%Y%m%d%H%M")
 COMMIT_ID=$(git rev-parse HEAD)
 GOOS=linux GOARCH=amd64 go build \
