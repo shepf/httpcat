@@ -290,8 +290,8 @@ Feel free to raise an issue. Good luck! 🍀
 
 我们找到这个文件，并删除这个文件,然后重启httpcat即可。
 ```bash
-find / -name sqlite.db
-rm xxx/sqlite.db
+find / -name httpcat_sqlite.db
+rm xxx/httpcat_sqlite.db
 ```
 
 ## 📝License

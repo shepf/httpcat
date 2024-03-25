@@ -32,18 +32,18 @@ GOOS=linux GOARCH=amd64 go build \
 # 构建 Linux ARM 版本
 echo "Building for Linux ARM"
 
-GOOS=linux GOARCH=arm go build \
+GOOS=linux GOARCH=arm64 go build \
  -ldflags "-s -w" \
  -ldflags "-X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
- -o ./release/httpcat-linux-arm ./cmd/httpcat.go
+ -o ./release/httpcat-linux-aarch64 ./cmd/httpcat.go
 
 ## 构建 Windows x86 版本
 #echo "Building for Windows x86"
-echo "Building for Windows"
-GOOS=windows GOARCH=amd64 go build \
- -ldflags "-s -w" \
- -ldflags "-X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
- -o ./release/httpcat.exe ./cmd/httpcat.go
+#echo "Building for Windows"
+#GOOS=windows GOARCH=amd64 go build \
+# -ldflags "-s -w" \
+# -ldflags "-X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
+# -o ./release/httpcat.exe ./cmd/httpcat.go
 
 
 # 修改源码 README.md、translations/README-cn.md 文件中的 httpcat_version="v0.x.x" 为当前版本号

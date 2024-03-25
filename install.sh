@@ -74,8 +74,8 @@ function get_arch_type() {
     arch=$(uname -m)
     if [[ "$arch" == "x86_64" ]]; then
         echo "x86"
-    elif [[ "$arch" == "arm"* ]]; then
-        echo "arm"
+    elif [[ "$arch" == "aarch64"* ]]; then
+        echo "aarch64"
     else
         echo "unknown"
     fi
@@ -90,8 +90,8 @@ function httpcat::intall(){
   case $arch_type in
     "x86")
       cp -rf httpcat-linux-x86 httpcat ;;
-    "arm")
-      cp -rf httpcat-linux-arm httpcat ;;
+    "aarch64")
+      cp -rf httpcat-linux-aarch64 httpcat ;;
     *)
       echo "Unsupported architecture."
       exit 1 ;;

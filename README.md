@@ -322,8 +322,8 @@ The default path for the SQLite database is specified by the sqlite_db_path para
 
 To reset the password, locate the SQLite database file and delete it. Then, restart the httpcat service, and a new SQLite database will be created.
 ```bash
-find / -name sqlite.db
-rm xxx/sqlite.db
+find / -name httpcat_sqlite.db
+rm xxx/httpcat_sqlite.db
 ```
 
 ## 📝License
