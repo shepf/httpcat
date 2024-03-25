@@ -25,6 +25,8 @@ type AuthRequest struct {
 }
 
 func UserLogin(c *gin.Context) {
+	ylog.Infof("UserLogin", "UserLogin function called")
+
 	var user AuthRequest
 
 	// 通过c.BindJSON(&user)将请求体中的JSON数据绑定到user结构体中。如果绑定失败，会返回参数无效的错误响应。
@@ -68,6 +70,9 @@ func UserLogin(c *gin.Context) {
 		}
 		common.CreateResponse(c, common.SuccessCode, bson.M{"token": token})
 	}
+
+	ylog.Infof("UserLogin", "UserLogin function completed")
+
 }
 
 func ChangePasswd(c *gin.Context) {

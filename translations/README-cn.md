@@ -286,12 +286,16 @@ Feel free to raise an issue. Good luck! 🍀
 如果忘记密码，可以修改sqlite数据库，删除admin用户，重启httpcat服务，会重新创建admin用户。
 或者直接删除sqlite数据库，重启httpcat服务，会重新创建sqlite数据库。
 
-默认的sqlite数据库路径，由配置文件中的sqlite_db_path指定，默认为：`./data/sqlite.db`，可以通过配置文件修改sqlite数据库路径。
+默认的sqlite数据库路径，由配置文件中的sqlite_db_path指定，默认为：`./data/httpcat_sqlite.db`，可以通过配置文件修改sqlite数据库路径。
 
 我们找到这个文件，并删除这个文件,然后重启httpcat即可。
 ```bash
 find / -name httpcat_sqlite.db
-rm xxx/httpcat_sqlite.db
+rm /root/data/httpcat_sqlite.db
+
+systemctl status httpcat
+systemctl stop httpcat
+systemctl start httpcat
 ```
 
 ## 📝License

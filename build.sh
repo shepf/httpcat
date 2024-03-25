@@ -32,7 +32,16 @@ GOOS=linux GOARCH=amd64 go build \
 # 构建 Linux ARM 版本
 echo "Building for Linux ARM"
 
-GOOS=linux GOARCH=arm64 go build \
+# 需要添加 CGO_ENABLED=1
+# 在编译 Linux x86 架构的版本时，你没有遇到 CGO 的问题，因为在 x86 架构上，默认情况下，CGO 是启用的。
+#不同的架构对 CGO 的支持情况是不同的。在 x86 架构上，通常默认启用 CGO，而在 ARM 架构上，默认情况下是禁用 CGO。这就是为什么在编译 ARM 架构的版本时，需要显式启用 CGO。
+# go-sqlite3 包是一个 Cgo 包，它依赖于 CGO 来与 SQLite 库进行交互。因此，当你禁用 CGO 后，go-sqlite3 将无法正常工作
+
+# 另外：如果你在 x86 架构的计算机上编译 ARM 架构的程序，并且使用了 CGO，你需要安装适用于 ARM 架构的交叉编译工具链。
+#交叉编译工具链是用于在一个平台上构建另一个平台的工具集。在这种情况下，你需要安装适用于 ARM 架构的交叉编译工具链，例如 gcc-aarch64-linux-gnu。
+#
+sudo apt-get install gcc-aarch64-linux-gnu -y
+CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build \
  -ldflags "-s -w" \
  -ldflags "-X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
  -o ./release/httpcat-linux-aarch64 ./cmd/httpcat.go
