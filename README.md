@@ -30,12 +30,16 @@ cd target_directory/release
 ./install.sh
 ```
 
-Of course, you can also refer to the installation steps below for manual installation. 
+```bash
+systemctl status httpcat
+systemctl stop httpcat
+systemctl start httpcat
 
-However, please note that the frontend files have already been packaged into the installation package, 
-so there is no need to separately download the frontend files.
+tail -f /root/log/httpcat.log
+```
 
-### For versions prior to v0.1.2
+
+#### For versions prior to v0.1.2
 1. Download the latest httpcat installation package.
    `https://github.com/shepf/httpcat-release/tags`
 

@@ -25,7 +25,15 @@ cd target_directory/release
 ./install.sh
 ```
 
-### v0.1.1版本以及之前版本安装, 新版本请参考上面的安装步骤
+```bash
+systemctl status httpcat
+systemctl stop httpcat
+systemctl start httpcat
+
+tail -f /root/log/httpcat.log
+```
+
+#### v0.1.1版本以及之前版本安装, 新版本请参考上面的安装步骤
 v0.1.1版本以及之前版本 httpcat和httpcat_web是分开发布的，需要分别下载安装。
 
 1. 下载最新httpcat安装包
