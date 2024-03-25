@@ -17,25 +17,36 @@ if [ ! -f "dist.zip" ]; then
 fi
 cp dist.zip release/ -rf
 
-# Build for Linux
-echo "Building for Linux"
 
-HTTPCAT_VERSION=v0.1.4
+# 构建 Linux x86 版本
+echo "Building for Linux x86"
+
+HTTPCAT_VERSION=v0.1.5
 HTTPCAT_BUILD=$(date "+%Y%m%d%H%M")
 COMMIT_ID=$(git rev-parse HEAD)
 GOOS=linux GOARCH=amd64 go build \
  -ldflags "-s -w" \
  -ldflags "-X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
- -o ./release/httpcat ./cmd/httpcat.go
+ -o ./release/httpcat-linux-x86 ./cmd/httpcat.go
 
-# Build for Windows
+# 构建 Linux ARM 版本
+echo "Building for Linux ARM"
+
+GOOS=linux GOARCH=arm go build \
+ -ldflags "-s -w" \
+ -ldflags "-X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
+ -o ./release/httpcat-linux-arm ./cmd/httpcat.go
+
+## 构建 Windows x86 版本
+#echo "Building for Windows x86"
 echo "Building for Windows"
 GOOS=windows GOARCH=amd64 go build \
  -ldflags "-s -w" \
  -ldflags "-X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
  -o ./release/httpcat.exe ./cmd/httpcat.go
 
-# 修改源码 README.md、translations/README-cn.md 文件中的 httpcat_version="v0.1.3" 为当前版本号
+
+# 修改源码 README.md、translations/README-cn.md 文件中的 httpcat_version="v0.x.x" 为当前版本号
 sed -i "s/httpcat_version=\".*\"/httpcat_version=\"$HTTPCAT_VERSION\"/g" README.md
 sed -i "s/httpcat_version=\".*\"/httpcat_version=\"$HTTPCAT_VERSION\"/g" translations/README-cn.md
 
@@ -48,7 +59,9 @@ mkdir -p release/translations
 cp -rf translations/* release/translations/
 # copy install.sh
 cp -r install.sh release/
+cp -r uninstall.sh release/
 chmod +x release/install.sh
+chmod +x release/uninstall.sh
 
 # Create release archive for Linux
 tar zcvf httpcat_$HTTPCAT_VERSION.tar.gz release/*

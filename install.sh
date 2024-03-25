@@ -70,7 +70,33 @@ function httpcat::unintall(){
 }
 
 
+function get_arch_type() {
+    arch=$(uname -m)
+    if [[ "$arch" == "x86_64" ]]; then
+        echo "x86"
+    elif [[ "$arch" == "arm"* ]]; then
+        echo "arm"
+    else
+        echo "unknown"
+    fi
+}
+
+
 function httpcat::intall(){
+  arch_type=$(get_arch_type)
+  echo "Detected architecture type: $arch_type"
+
+  # 根据架构类型复制并重命名安装包
+  case $arch_type in
+    "x86")
+      cp -rf httpcat-linux-x86 httpcat ;;
+    "arm")
+      cp -rf httpcat-linux-arm httpcat ;;
+    *)
+      echo "Unsupported architecture."
+      exit 1 ;;
+  esac
+
   # 执行命令并提取版本号
   version=$(./httpcat -v | grep 'Version:' | awk '{print $2}')
 
