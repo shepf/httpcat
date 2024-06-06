@@ -20,7 +20,7 @@ You can directly download the latest httpcat installation package.
 After extracting it, simply run the `install.sh` script to install.
 
 ```bash
-httpcat_version="v0.1.4"
+httpcat_version="v0.1.5"
 mkdir target_directory
 tar -zxvf httpcat_$httpcat_version.tar.gz -C target_directory
 ```

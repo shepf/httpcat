@@ -15,7 +15,7 @@ HttpCat 是一个基于 HTTP 的文件传输服务，旨在提供简单、高效
 下载最新的httpcat安装包，解压后，直接运行install.sh即可。
 
 ```bash
-httpcat_version="v0.1.4"
+httpcat_version="v0.1.5"
 mkdir target_directory
 tar -zxvf httpcat_$httpcat_version.tar.gz -C target_directory
 ```
