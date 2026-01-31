@@ -1,0 +1,60 @@
+# ============================================================
+# HttpCat Backend (Go) - .gitignore
+# ============================================================
+
+# ============ Go Binaries ============
+httpcat
+httpcat.exe
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Coverage
+*.out
+*.cover
+coverage.html
+
+# ============ Vendor ============
+# Uncomment if not committing vendor
+# vendor/
+
+# ============ IDE ============
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ============ OS ============
+.DS_Store
+Thumbs.db
+
+# ============ Runtime Data ============
+# Data directory (SQLite, etc.)
+data/
+
+# Log files
+log/
+logs/
+*.log
+
+# Website static files (served from here in dev)
+website/
+
+# Upload directory
+upload/
+uploads/
+
+# ============ Config ============
+# Local config overrides
+internal/conf/*.local.yml
+*.local
+
+# ============ Temp ============
+tmp/
+temp/
+*.tmp

@@ -1,0 +1,58 @@
+# ============================================================
+# HttpCat Frontend - .gitignore
+# ============================================================
+
+# ============ Dependencies ============
+node_modules/
+
+# ============ Build Output ============
+dist/
+build/
+
+# UmiJS specific
+.umi/
+.umi-production/
+.umi-test/
+
+# ============ Cache ============
+.eslintcache
+.stylelintcache
+.cache/
+
+# ============ IDE ============
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ============ OS ============
+.DS_Store
+Thumbs.db
+
+# ============ Package Manager ============
+# Uncomment if using yarn
+# yarn.lock
+
+# pnpm
+pnpm-lock.yaml
+.pnpm-debug.log
+
+# npm
+npm-debug.log*
+package-lock.json.bak
+
+# ============ Environment ============
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ============ Test & Coverage ============
+coverage/
+.nyc_output/
+
+# ============ Misc ============
+*.log
+*.tmp
+*.temp

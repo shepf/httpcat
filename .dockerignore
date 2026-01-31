@@ -1,45 +1,101 @@
-# Git
+# ============================================================
+# HttpCat - Docker Build Ignore
+# ============================================================
+
+# ============ Git ============
 .git
 .gitignore
+.gitattributes
 
-# 构建产物
+# ============ Build Output ============
 release/
 output/
 *.tar.gz
-*.exe
+*.zip
 
-# IDE & Editor
+# ============ IDE & Editor ============
 .idea/
 .vscode/
 .codebuddy/
 *.swp
 *.swo
+*~
 
-# 日志和数据
-log/
-data/
-*.log
-*.db
-
-# 测试
-*_test.go
-
-# 文档（Dockerfile 不需要）
+# ============ Documentation ============
+# Exclude docs from image (not needed at runtime)
 docs/
 translations/
 *.md
 !README.md
 
-# 前端构建产物
-dist.zip
-node_modules/
+# ============ Go Backend ============
+# Compiled binaries (will rebuild in Docker)
+server-go/httpcat
+server-go/httpcat.exe
+*.exe
 
-# macOS / Windows
+# Runtime data (not needed for build)
+server-go/data/
+server-go/log/
+server-go/website/
+server-go/upload/
+
+# Test files
+*_test.go
+**/*_test.go
+
+# ============ Frontend ============
+# Dependencies (will reinstall in Docker)
+web/node_modules/
+
+# Build output (will rebuild in Docker)
+web/dist/
+web/.umi/
+web/.umi-production/
+
+# Cache files
+web/.eslintcache
+web/.stylelintcache
+
+# ============ Static Assets ============
+# Previous build output
+static/assets/
+static/*.js
+static/*.css
+static/*.map
+
+# ============ Data & Logs ============
+log/
+logs/
+data/
+*.log
+*.db
+*.sqlite
+
+# ============ OS Files ============
 .DS_Store
+.DS_Store?
 Thumbs.db
+Desktop.ini
 
-# 临时文件
+# ============ Temp Files ============
 *.tmp
+*.temp
 *.bak
+*.backup
 tmp/
 temp/
+
+# ============ Environment ============
+.env
+.env.*
+!.env.example
+
+# ============ Test & Coverage ============
+coverage/
+.nyc_output/
+test-results/
+
+# ============ Local Config ============
+*.local
+*.local.*

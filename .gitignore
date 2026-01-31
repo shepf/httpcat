@@ -1,52 +1,139 @@
-.idea
-### Go template
-# Binaries for programs and plugins
+# ============================================================
+# HttpCat Project - Root .gitignore
+# ============================================================
+
+# ============ IDE & Editor ============
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# CodeBuddy IDE
+.codebuddy/
+
+# ============ OS Generated Files ============
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ============ Build Output ============
+output/
+release/
+dist.zip
+
+# ============ Go Backend (server-go/) ============
+# Go binaries
+server-go/httpcat
+server-go/httpcat.exe
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
 
-# Test binary, built with `go test -c`
+# Go test binaries
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
+# Go coverage
 *.out
+*.cover
+coverage.html
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Go vendor (uncomment if not using)
+# server-go/vendor/
 
-output/
-release/
-data/
+# Backend runtime data
+server-go/data/
+server-go/log/
+server-go/website/
+server-go/upload/
 
-# IDE & Editor
-.vscode/
-*.swp
-*.swo
-*~
+# ============ Frontend (web/) ============
+# Dependencies
+web/node_modules/
 
-# CodeBuddy IDE
-.codebuddy/
+# Build output (generated in web/dist/)
+web/dist/
+web/.umi/
+web/.umi-production/
+web/.umi-test/
 
-# Log files
-*.log
-log/
+# Package manager
+web/yarn.lock
+web/pnpm-lock.yaml
+web/.pnpm-debug.log
 
-# OS generated files
-.DS_Store
-.DS_Store?
-Thumbs.db
+# Cache
+web/.eslintcache
+web/.stylelintcache
 
-# Local configuration (keep template, ignore local)
-# server/conf/svr.local.yml
+# ============ Static Assets ============
+# Frontend build output (copied from web/dist/)
+# Keep directory structure, ignore generated files
+static/assets/
+static/umi.*.js
+static/umi.*.css
+static/*.js
+static/*.css
+static/*.map
+static/*.chunk.*
+!static/index.html
+!static/favicon.ico
 
-# SQLite database files
+# ============ Database Files ============
 *.db
 *.sqlite
 *.sqlite3
 
-# Temporary files
+# ============ Log Files ============
+*.log
+log/
+logs/
+
+# ============ Temporary Files ============
 tmp/
 temp/
 *.tmp
+*.temp
+*.bak
+*.backup
+
+# ============ Environment & Config ============
+# Local configuration overrides
+*.local
+*.local.*
+.env
+.env.*
+!.env.example
+
+# Keep config templates, ignore local overrides
+# server-go/internal/conf/*.local.yml
+
+# ============ Docker ============
+# Ignore local docker volumes (if mounted)
+docker-data/
+
+# ============ Test & Coverage ============
+coverage/
+.nyc_output/
+test-results/
+junit.xml
+
+# ============ Misc ============
+# NPM debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Uploaded files (for development)
+upload/
+uploads/
+download/
+downloads/
