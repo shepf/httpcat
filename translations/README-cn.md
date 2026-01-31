@@ -9,13 +9,14 @@ HttpCat 是一个基于 HTTP 的文件传输服务，旨在提供简单、高效
 ## 💥功能特点
 * 简单易用
 * 无需外部依赖，易于移植
+* 🆕 **MCP 支持** - AI 助手（Claude、Cursor、CodeBuddy）可直接管理你的文件
 
 ## 🎉安装
 ### 快速安装
 下载最新的httpcat安装包，解压后，直接运行install.sh即可。
 
 ```bash
-httpcat_version="v0.1.5"
+httpcat_version="v0.2.0"
 mkdir target_directory
 tar -zxvf httpcat_$httpcat_version.tar.gz -C target_directory
 ```
@@ -280,6 +281,56 @@ POST
 1. HTTPS support
 
 Feel free to raise an issue. Good luck! 🍀
+
+## 🤖 MCP（模型上下文协议）支持
+
+HttpCat 支持 MCP 协议，让 AI 助手可以直接管理你的文件服务器。
+
+### 快速配置
+在你的 MCP 客户端配置（Claude Desktop、Cursor、CodeBuddy 等）中添加：
+
+```json
+{
+  "mcpServers": {
+    "httpcat": {
+      "type": "sse",
+      "url": "http://your-server:8888/mcp/sse"
+    }
+  }
+}
+```
+
+### 可用的 MCP 工具
+| 工具 | 功能说明 |
+|------|----------|
+| `list_files` | 列出上传目录中的文件 |
+| `get_file_info` | 获取文件详情（大小、MD5 等） |
+| `upload_file` | 通过 MCP 上传文件（需要 Token） |
+| `get_disk_usage` | 获取磁盘使用情况 |
+| `get_upload_history` | 查询上传历史记录 |
+| `request_delete_file` | 请求删除文件（第一步） |
+| `confirm_delete_file` | 确认删除文件（第二步） |
+| `get_statistics` | 获取上传/下载统计 |
+| `verify_file_md5` | 验证文件 MD5 完整性 |
+
+详细 MCP 使用指南请查看 [docs/MCP_USAGE.md](../docs/MCP_USAGE.md)
+
+## 🐳 Docker 部署
+
+### 快速启动
+```bash
+docker run -d --name httpcat \
+  -p 8888:8888 \
+  -v /path/to/data:/app/data \
+  httpcat:latest
+```
+
+### 使用 Docker Compose
+```bash
+docker-compose up -d
+```
+
+详细 Docker 部署指南请查看 [docs/DEPLOYMENT_STATUS.md](../docs/DEPLOYMENT_STATUS.md)
 
 ## 🍀 FAQ
 ### 忘记密码怎么办？

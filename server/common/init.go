@@ -97,6 +97,10 @@ func initDefault() {
 	EnableSqlite = UserConfig.GetBool("server.http.file.enable_sqlite")
 	SqliteDBPath = UserConfig.GetString("server.http.file.sqlite_db_path")
 
+	// for mcp
+	McpEnable = UserConfig.GetBool("server.mcp.enable")
+	McpAuthToken = UserConfig.GetString("server.mcp.auth_token")
+
 	// for p2p
 	P2pEnable = UserConfig.GetBool("server.p2p.enable")
 	P2pListenIP = UserConfig.GetString("server.p2p.listen.ip")

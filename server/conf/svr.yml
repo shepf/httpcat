@@ -59,3 +59,7 @@ server:
   pprof:
     enable: true
     port: 6753
+
+  mcp:
+    enable: true                          # 是否启用 MCP Server
+    auth_token: ""                        # MCP 认证 Token（可选，为空则不验证）

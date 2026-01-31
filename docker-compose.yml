@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  httpcat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: v0.2.0
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+        COMMIT_ID: ${COMMIT_ID:-unknown}
+    image: httpcat:latest
+    container_name: httpcat
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    volumes:
+      # 持久化数据
+      - httpcat_data:/app/data
+      - httpcat_upload:/app/website/upload
+      - httpcat_download:/app/website/download
+      - httpcat_logs:/app/log
+      # 可选：挂载自定义配置
+      # - ./conf/svr.yml:/app/conf/svr.yml:ro
+    environment:
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8888/api/v1/conf/getVersion"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  httpcat_data:
+  httpcat_upload:
+  httpcat_download:
+  httpcat_logs:

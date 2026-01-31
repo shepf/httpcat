@@ -12,6 +12,7 @@ Please note that this translation is a direct translation and may require furthe
 ## 💥Key Features
 * Simple and easy to use
 * No external dependencies, easy to port
+* 🆕 **MCP Support** - AI assistants (Claude, Cursor, CodeBuddy) can directly manage your files
 
 ## 🎉Installation
 ### Quick Installation
@@ -20,7 +21,7 @@ You can directly download the latest httpcat installation package.
 After extracting it, simply run the `install.sh` script to install.
 
 ```bash
-httpcat_version="v0.1.5"
+httpcat_version="v0.2.0"
 mkdir target_directory
 tar -zxvf httpcat_$httpcat_version.tar.gz -C target_directory
 ```
@@ -311,6 +312,56 @@ POST
 1. HTTPS support
 
 Feel free to raise an issue. Good luck! 🍀
+
+## 🤖 MCP (Model Context Protocol) Support
+
+HttpCat supports MCP, allowing AI assistants to directly manage your file server.
+
+### Quick Setup
+Add to your MCP client configuration (Claude Desktop, Cursor, CodeBuddy, etc.):
+
+```json
+{
+  "mcpServers": {
+    "httpcat": {
+      "type": "sse",
+      "url": "http://your-server:8888/mcp/sse"
+    }
+  }
+}
+```
+
+### Available MCP Tools
+| Tool | Description |
+|------|-------------|
+| `list_files` | List files in upload directory |
+| `get_file_info` | Get file details (size, MD5, etc.) |
+| `upload_file` | Upload file via MCP (requires Token) |
+| `get_disk_usage` | Get disk usage information |
+| `get_upload_history` | Query upload history |
+| `request_delete_file` | Request file deletion (step 1) |
+| `confirm_delete_file` | Confirm file deletion (step 2) |
+| `get_statistics` | Get upload/download statistics |
+| `verify_file_md5` | Verify file MD5 checksum |
+
+For detailed MCP usage guide, see [docs/MCP_USAGE.md](docs/MCP_USAGE.md)
+
+## 🐳 Docker Deployment
+
+### Quick Start
+```bash
+docker run -d --name httpcat \
+  -p 8888:8888 \
+  -v /path/to/data:/app/data \
+  httpcat:latest
+```
+
+### Using Docker Compose
+```bash
+docker-compose up -d
+```
+
+For detailed Docker deployment guide, see [docs/DEPLOYMENT_STATUS.md](docs/DEPLOYMENT_STATUS.md)
 
 ## 🍀 FAQ
 ### What to Do If You Forget the Password?

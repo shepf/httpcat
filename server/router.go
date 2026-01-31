@@ -5,6 +5,7 @@ import (
 	"gin_web_demo/server/common"
 	"gin_web_demo/server/common/ylog"
 	v1 "gin_web_demo/server/handler/v1"
+	"gin_web_demo/server/mcp"
 	"gin_web_demo/server/midware"
 	"net/http"
 	"strings"
@@ -32,6 +33,9 @@ func registerForFrontEnd(router *gin.Engine) {
 }
 
 func RegisterRouter(r *gin.Engine) {
+
+	// 注册 MCP Server 路由（必须在前端路由之前，因为前端的 NoRoute 会捕获所有未匹配路由）
+	registerMCPRoutes(r)
 
 	registerForFrontEnd(r)
 
@@ -143,6 +147,28 @@ func RegisterRouter(r *gin.Engine) {
 
 	}
 
+}
+
+// registerMCPRoutes 注册 MCP Server 路由
+func registerMCPRoutes(r *gin.Engine) {
+	// 检查是否启用 MCP
+	if !common.McpEnable {
+		ylog.Infof("RegisterRouter", "MCP Server is disabled")
+		return
+	}
+
+	// MCP Server 支持 SSE 传输
+	mcpServer := mcp.NewMCPServer()
+
+	// MCP SSE 端点 - 需要匹配 /mcp/sse 和 /mcp/message 等子路径
+	// 使用 Group 来处理所有 /mcp/* 请求
+	mcpGroup := r.Group("/mcp")
+	{
+		mcpGroup.GET("/*action", mcpServer.GetHandler())
+		mcpGroup.POST("/*action", mcpServer.GetHandler())
+	}
+
+	ylog.Infof("RegisterRouter", "MCP Server registered at /mcp/*")
 }
 
 // 这段代码的功能是处理跨域请求的设置，允许不同域的客户端进行访问，并设置相应的头部信息以满足跨域请求的要求。

@@ -19,3 +19,34 @@
 output/
 release/
 data/
+
+# IDE & Editor
+.vscode/
+*.swp
+*.swo
+*~
+
+# CodeBuddy IDE
+.codebuddy/
+
+# Log files
+*.log
+log/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+Thumbs.db
+
+# Local configuration (keep template, ignore local)
+# server/conf/svr.local.yml
+
+# SQLite database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+tmp/
+temp/
+*.tmp

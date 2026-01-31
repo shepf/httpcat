@@ -1,103 +1,171 @@
 #!/bin/bash
 
+set -e  # 遇到错误立即退出
+
+# ============ 颜色定义 ============
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# ============ 版本信息 ============
+HTTPCAT_VERSION=v0.2.0
+HTTPCAT_BUILD=$(date "+%Y%m%d%H%M")
+COMMIT_ID=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+
+# ============ 检测操作系统 ============
+OS_TYPE=$(uname -s)
+echo -e "${GREEN}检测到操作系统: $OS_TYPE${NC}"
+
+# ============ 环境检查 ============
 if ! type go >/dev/null 2>&1; then
-    echo 'go not installed';
+    echo -e "${RED}错误: Go 未安装${NC}"
     exit 1
 fi
 
-# Clean output directory
+echo -e "${GREEN}Go 版本: $(go version)${NC}"
+
+# ============ 清理并创建目录 ============
 rm -rf release
 mkdir -p release
+
+echo "执行 go mod tidy..."
 go mod tidy
 
-# 检查前端文件是否存在
+# ============ 检查前端文件 ============
 if [ ! -f "dist.zip" ]; then
-  echo "dist.zip 文件不存在，请先执行 npm run build 命令,打包前端,再执行 build.sh"
-  exit 1
+    echo -e "${YELLOW}警告: dist.zip 文件不存在${NC}"
+    echo "请先执行 npm run build 命令打包前端，或者跳过前端打包继续构建"
+    read -p "是否继续构建？(y/n): " continue_build
+    if [ "$continue_build" != "y" ]; then
+        exit 1
+    fi
+else
+    cp -rf dist.zip release/
 fi
-cp dist.zip release/ -rf
 
+# ============ 构建函数 ============
+build_binary() {
+    local target_os=$1
+    local target_arch=$2
+    local output_name=$3
+    local cc_compiler=${4:-""}
+    
+    echo -e "${GREEN}构建 $target_os $target_arch 版本...${NC}"
+    
+    local build_cmd="GOOS=$target_os GOARCH=$target_arch"
+    
+    # 如果需要 CGO（SQLite 依赖）
+    if [ -n "$cc_compiler" ]; then
+        build_cmd="CC=$cc_compiler CGO_ENABLED=1 $build_cmd"
+    else
+        # x86_64 本机编译，启用 CGO
+        if [ "$target_arch" = "amd64" ] && [ "$target_os" = "linux" ]; then
+            build_cmd="CGO_ENABLED=1 $build_cmd"
+        fi
+    fi
+    
+    eval $build_cmd go build \
+        -ldflags \"-s -w -X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID\" \
+        -o ./release/$output_name ./cmd/httpcat.go
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ $output_name 构建成功${NC}"
+    else
+        echo -e "${RED}✗ $output_name 构建失败${NC}"
+        return 1
+    fi
+}
 
-# 构建 Linux x86 版本
-echo "Building for Linux x86"
+# ============ 构建 Linux x86_64 版本 ============
+# 注意：如果在 macOS 上交叉编译 Linux 且需要 CGO，需要安装交叉编译工具链
+# 可以使用 Docker 来构建，或者禁用 CGO（但会失去 SQLite 支持）
 
-HTTPCAT_VERSION=v0.1.5
-HTTPCAT_BUILD=$(date "+%Y%m%d%H%M")
-COMMIT_ID=$(git rev-parse HEAD)
-GOOS=linux GOARCH=amd64 go build \
- -ldflags "-s -w" \
- -ldflags "-X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
- -o ./release/httpcat-linux-x86 ./cmd/httpcat.go
+if [ "$OS_TYPE" = "Darwin" ]; then
+    echo -e "${YELLOW}macOS 交叉编译 Linux 需要禁用 CGO 或使用 Docker${NC}"
+    echo "建议使用 Docker 构建: docker build -t httpcat:latest ."
+    
+    # macOS 上禁用 CGO 构建（将无法使用 SQLite）
+    # 如果需要 SQLite 支持，请使用 Docker 构建
+    echo -e "${YELLOW}使用禁用 CGO 模式构建（无 SQLite 支持）...${NC}"
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+        -ldflags "-s -w -X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
+        -o ./release/httpcat-linux-x86 ./cmd/httpcat.go && \
+        echo -e "${GREEN}✓ httpcat-linux-x86 构建成功（无 SQLite）${NC}"
+    
+    # ARM64 版本
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+        -ldflags "-s -w -X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
+        -o ./release/httpcat-linux-aarch64 ./cmd/httpcat.go && \
+        echo -e "${GREEN}✓ httpcat-linux-aarch64 构建成功（无 SQLite）${NC}"
+        
+    # macOS 本机版本（启用 CGO，支持 SQLite）
+    echo -e "${GREEN}构建 macOS 本机版本（支持 SQLite）...${NC}"
+    CGO_ENABLED=1 go build \
+        -ldflags "-s -w -X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
+        -o ./release/httpcat-darwin ./cmd/httpcat.go && \
+        echo -e "${GREEN}✓ httpcat-darwin 构建成功${NC}"
+else
+    # Linux 环境
+    echo "构建 Linux x86_64 版本..."
+    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
+        -ldflags "-s -w -X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
+        -o ./release/httpcat-linux-x86 ./cmd/httpcat.go && \
+        echo -e "${GREEN}✓ httpcat-linux-x86 构建成功${NC}"
 
-# 构建 Linux ARM 版本
-echo "Building for Linux ARM"
+    # Linux ARM64 版本（需要交叉编译工具链）
+    if command -v aarch64-linux-gnu-gcc &> /dev/null; then
+        echo "构建 Linux ARM64 版本..."
+        CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build \
+            -ldflags "-s -w -X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
+            -o ./release/httpcat-linux-aarch64 ./cmd/httpcat.go && \
+            echo -e "${GREEN}✓ httpcat-linux-aarch64 构建成功${NC}"
+    else
+        echo -e "${YELLOW}跳过 ARM64 构建：未找到 aarch64-linux-gnu-gcc${NC}"
+        echo "安装方法: sudo apt-get install gcc-aarch64-linux-gnu"
+    fi
+fi
 
-# 需要添加 CGO_ENABLED=1
-# 在编译 Linux x86 架构的版本时，你没有遇到 CGO 的问题，因为在 x86 架构上，默认情况下，CGO 是启用的。
-#不同的架构对 CGO 的支持情况是不同的。在 x86 架构上，通常默认启用 CGO，而在 ARM 架构上，默认情况下是禁用 CGO。这就是为什么在编译 ARM 架构的版本时，需要显式启用 CGO。
-# go-sqlite3 包是一个 Cgo 包，它依赖于 CGO 来与 SQLite 库进行交互。因此，当你禁用 CGO 后，go-sqlite3 将无法正常工作
+# ============ 更新 README 版本号 ============
+echo "更新 README 版本号..."
+if [ "$OS_TYPE" = "Darwin" ]; then
+    # macOS sed 需要 -i '' 
+    sed -i '' "s/httpcat_version=\".*\"/httpcat_version=\"$HTTPCAT_VERSION\"/g" README.md 2>/dev/null || true
+    sed -i '' "s/httpcat_version=\".*\"/httpcat_version=\"$HTTPCAT_VERSION\"/g" translations/README-cn.md 2>/dev/null || true
+else
+    # Linux sed
+    sed -i "s/httpcat_version=\".*\"/httpcat_version=\"$HTTPCAT_VERSION\"/g" README.md
+    sed -i "s/httpcat_version=\".*\"/httpcat_version=\"$HTTPCAT_VERSION\"/g" translations/README-cn.md
+fi
 
-# 另外：如果你在 x86 架构的计算机上编译 ARM 架构的程序，并且使用了 CGO，你需要安装适用于 ARM 架构的交叉编译工具链。
-#交叉编译工具链是用于在一个平台上构建另一个平台的工具集。在这种情况下，你需要安装适用于 ARM 架构的交叉编译工具链，例如 gcc-aarch64-linux-gnu。
-#
-sudo apt-get install gcc-aarch64-linux-gnu -y
-CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build \
- -ldflags "-s -w" \
- -ldflags "-X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
- -o ./release/httpcat-linux-aarch64 ./cmd/httpcat.go
-
-## 构建 Windows x86 版本
-#echo "Building for Windows x86"
-#echo "Building for Windows"
-#GOOS=windows GOARCH=amd64 go build \
-# -ldflags "-s -w" \
-# -ldflags "-X gin_web_demo/server/common.Version=$HTTPCAT_VERSION -X gin_web_demo/server/common.Build=$HTTPCAT_BUILD -X gin_web_demo/server/common.Commit=$COMMIT_ID" \
-# -o ./release/httpcat.exe ./cmd/httpcat.go
-
-
-# 修改源码 README.md、translations/README-cn.md 文件中的 httpcat_version="v0.x.x" 为当前版本号
-sed -i "s/httpcat_version=\".*\"/httpcat_version=\"$HTTPCAT_VERSION\"/g" README.md
-sed -i "s/httpcat_version=\".*\"/httpcat_version=\"$HTTPCAT_VERSION\"/g" translations/README-cn.md
-
-# Package configuration file and static files
+# ============ 打包发布文件 ============
+echo "打包发布文件..."
 cp -r server/conf release/
 cp -r static release/
 cp -r httpcat.service release/
 cp -r README.md release/
 mkdir -p release/translations
 cp -rf translations/* release/translations/
-# copy install.sh
 cp -r install.sh release/
 cp -r uninstall.sh release/
 chmod +x release/install.sh
 chmod +x release/uninstall.sh
 
-# Create release archive for Linux
-tar zcvf httpcat_$HTTPCAT_VERSION.tar.gz release/*
-mv httpcat_$HTTPCAT_VERSION.tar.gz release/
+# 创建发布压缩包
+tar zcvf release/httpcat_$HTTPCAT_VERSION.tar.gz -C release .
 
-# Return to the root directory
-cd ..
+# ============ 构建完成 ============
+echo ""
+echo -e "${GREEN}========================================${NC}"
+echo -e "${GREEN}构建完成！版本: $HTTPCAT_VERSION${NC}"
+echo -e "${GREEN}========================================${NC}"
+echo ""
+echo "构建产物:"
+ls -lh release/
 
-echo "Build complete"
-
-
-config_systemd(){
-
-      if [ -f /usr/bin/systemctl ]; then
-        #For CentOS7
-        #check and add httpcat service
-        rm -rf /usr/lib/systemd/system/httpcat.service
-        cp httpcat.service  /usr/lib/systemd/system/ -f
-
-        systemctl is-enabled httpcat
-        if [ $? -ne 0 ]; then
-            systemctl enable httpcat
-        fi
-
-
-      fi
-
-
-}
-
+echo ""
+echo -e "${YELLOW}提示：${NC}"
+echo "1. 如需带 SQLite 的 Linux 版本，请使用 Docker 构建:"
+echo "   docker build -t httpcat:latest ."
+echo ""
+echo "2. 发布包位置: release/httpcat_$HTTPCAT_VERSION.tar.gz"
