@@ -127,54 +127,66 @@ Access the application:
 ```bash
 # Download and extract
 httpcat_version="v0.2.0"
-mkdir httpcat && cd httpcat
-tar -zxvf httpcat_$httpcat_version.tar.gz
+tar -zxvf httpcat_${httpcat_version}_linux-amd64.tar.gz
+cd httpcat_${httpcat_version}_linux-amd64
 
-# Install
-./install.sh
+# Install (interactive)
+sudo ./install.sh
+
+# Or install with custom port
+sudo ./install.sh -p 9000
 
 # Manage service
-systemctl status httpcat
-systemctl start httpcat
-systemctl stop httpcat
-
-# View logs
-tail -f /root/log/httpcat.log
-```
-
-### Manual Installation
-
-```bash
-# 1. Create directories
-mkdir -p /home/web/website/upload/
-mkdir -p /home/web/website/httpcat_web/
-mkdir -p /etc/httpdcat/
-
-# 2. Install backend
-cp httpcat /usr/local/bin/
-cp conf/svr.yml /etc/httpdcat/
-
-# 3. Install frontend
-unzip httpcat_web.zip -d /home/web/website/httpcat_web/
-
-# 4. Start service
-httpcat --port=8888 \
-  --static=/home/web/website/httpcat_web/ \
-  --upload=/home/web/website/upload/ \
-  --download=/home/web/website/upload/ \
-  -C /etc/httpdcat/svr.yml
-```
-
-### Using systemd
-
-```bash
-# Copy service file
-cp httpcat.service /usr/lib/systemd/system/
-
-# Reload and start
-sudo systemctl daemon-reload
-sudo systemctl enable httpcat
 sudo systemctl start httpcat
+sudo systemctl status httpcat
+```
+
+### Installation Directory Structure
+
+After running `install.sh`, files are organized following Linux FHS standard:
+
+```
+/usr/local/bin/
+└── httpcat                         # Executable
+
+/etc/httpcat/
+└── svr.yml                         # Configuration
+
+/var/log/httpcat/
+└── httpcat.log                     # Log files
+
+/var/lib/httpcat/
+├── static/                         # Web UI assets
+├── upload/                         # Uploaded files
+├── download/                       # Download cache
+└── data/
+    └── httpcat_sqlite.db           # SQLite database
+```
+
+### Service Management
+
+```bash
+# Start/Stop/Restart
+sudo systemctl start httpcat
+sudo systemctl stop httpcat
+sudo systemctl restart httpcat
+
+# View status and logs
+sudo systemctl status httpcat
+sudo journalctl -u httpcat -f
+```
+
+### Uninstall
+
+```bash
+# Standard uninstall (keeps config and data)
+sudo ./uninstall.sh
+
+# Complete removal (deletes everything)
+sudo ./uninstall.sh --purge
+
+# Keep uploaded files only
+sudo ./uninstall.sh --purge --keep-data
 ```
 
 ## 🤖 MCP (Model Context Protocol) Support
