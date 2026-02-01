@@ -212,14 +212,16 @@ HttpCat 使用 SQLite 作为数据库，需要 CGO 支持。**SQLite 是核心�
 
 ### 必需
 
-- Go 1.21+
+- **Go 1.23+** - 后端编译
 - Git
 
 ### 可选
 
-- Node.js 16+（构建前端）
-- Docker（跨平台构建）
-- `aarch64-linux-gnu-gcc`（Linux 上交叉编译 ARM64）
+- **Node.js 20+** - 构建前端（推荐 v20.x LTS）
+- Docker - 跨平台构建（macOS 上编译 Linux 版本时推荐）
+- `aarch64-linux-gnu-gcc` - Linux 上交叉编译 ARM64
+
+> 💡 **提示**: 使用 nvm 的用户可在 `web/` 目录运行 `nvm use` 自动切换版本
 
 ### 安装交叉编译工具链（Linux）
 

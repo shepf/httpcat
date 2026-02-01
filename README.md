@@ -299,9 +299,11 @@ NODE_OPTIONS=--openssl-legacy-provider npm run start:dev
 
 ### 环境要求
 
-- Go 1.19+
-- Node.js 16+（推荐 v16.18.0）
-- npm 或 yarn
+- **Go 1.23+** - 后端编译
+- **Node.js 20+** - 前端构建（推荐 v20.x LTS）
+- **npm** - 包管理器（随 Node.js 安装）
+
+> 💡 **提示**: 使用 nvm 的用户可在 `web/` 目录运行 `nvm use` 自动切换到项目指定版本
 
 ### 构建命令
 

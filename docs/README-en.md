@@ -299,9 +299,11 @@ Recommended: Use Node.js v16.x for best compatibility.
 
 ### Prerequisites
 
-- Go 1.19+
-- Node.js 16+ (recommended: v16.18.0)
-- npm or yarn
+- **Go 1.23+** - Backend compilation
+- **Node.js 20+** - Frontend build (recommended: v20.x LTS)
+- **npm** - Package manager (included with Node.js)
+
+> 💡 **Tip**: nvm users can run `nvm use` in the `web/` directory to automatically switch to the project-specified version
 
 ### Build Commands
 
