@@ -10,6 +10,7 @@ import (
 	"httpcat/internal/common"
 	"httpcat/internal/common/utils"
 	"httpcat/internal/common/ylog"
+	"httpcat/internal/models"
 	"httpcat/internal/storage/auth"
 	"net/http"
 	"os"
@@ -18,9 +19,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/disintegration/imaging"
 	"github.com/gin-gonic/gin"
 	"github.com/mark3labs/mcp-go/mcp"
 	mcpserver "github.com/mark3labs/mcp-go/server"
+	uuid "github.com/satori/go.uuid"
 )
 
 // MCPServer MCP Server 实例
@@ -278,6 +281,17 @@ func registerTools(s *mcpserver.MCPServer) {
 			mcp.WithString("upload_token", mcp.Required(), mcp.Description("上传 Token，格式: appkey:signature:policy")),
 		),
 		handleUploadFile,
+	)
+
+	// 10. 上传图片（写入图片管理，生成缩略图，可在 listThumbImages 中查看）
+	s.AddTool(
+		mcp.NewTool("upload_image",
+			mcp.WithDescription("上传图片到 HttpCat 图片管理（会生成缩略图，可在图片管理页面和 listThumbImages 接口中查看）"),
+			mcp.WithString("filename", mcp.Required(), mcp.Description("图片文件名，包含扩展名（如 photo.png）")),
+			mcp.WithString("content_base64", mcp.Required(), mcp.Description("图片内容的 Base64 编码")),
+			mcp.WithString("upload_token", mcp.Required(), mcp.Description("上传 Token，格式: appkey:signature:policy")),
+		),
+		handleUploadImage,
 	)
 
 	// 注：create_upload_token 功能已从 MCP 移除
@@ -796,6 +810,163 @@ func handleUploadFile(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 
 	data, _ := json.MarshalIndent(uploadResult, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
+}
+
+// handleUploadImage 处理图片上传（写入图片管理，生成缩略图）
+func handleUploadImage(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if !common.FileUploadEnable {
+		return mcp.NewToolResultError("File upload is disabled"), nil
+	}
+
+	args := request.GetArguments()
+
+	filename, ok := args["filename"].(string)
+	if !ok || filename == "" {
+		return mcp.NewToolResultError("filename is required"), nil
+	}
+
+	contentBase64, ok := args["content_base64"].(string)
+	if !ok || contentBase64 == "" {
+		return mcp.NewToolResultError("content_base64 is required"), nil
+	}
+
+	uploadToken, ok := args["upload_token"].(string)
+	if !ok || uploadToken == "" {
+		return mcp.NewToolResultError("upload_token is required"), nil
+	}
+
+	// Base64 解码
+	content, err := base64.StdEncoding.DecodeString(contentBase64)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid base64 content: %v", err)), nil
+	}
+
+	// 验证文件名安全
+	if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
+		return mcp.NewToolResultError("Invalid filename: path traversal detected"), nil
+	}
+	if strings.HasPrefix(filename, ".") {
+		return mcp.NewToolResultError("Invalid filename: hidden files not allowed"), nil
+	}
+
+	// 验证 UploadToken
+	if common.EnableUploadToken {
+		parts := strings.Split(uploadToken, ":")
+		if len(parts) != 3 {
+			return mcp.NewToolResultError("Invalid UploadToken format"), nil
+		}
+
+		appkey := parts[0]
+
+		db, err := common.GetDB()
+		if err != nil {
+			return mcp.NewToolResultError("Failed to verify token"), nil
+		}
+
+		type TokenItem struct {
+			Appsecret string `gorm:"column:app_secret"`
+			State     string `gorm:"column:state"`
+		}
+
+		var tokenItem TokenItem
+		result := db.Table("t_upload_token").Where("appkey = ?", appkey).First(&tokenItem)
+		if result.Error != nil {
+			return mcp.NewToolResultError("Invalid appkey"), nil
+		}
+
+		if tokenItem.State == "closed" {
+			return mcp.NewToolResultError("Appkey is disabled"), nil
+		}
+
+		mac := auth.New(appkey, tokenItem.Appsecret)
+		if !mac.VerifyUploadToken(uploadToken) {
+			return mcp.NewToolResultError("Invalid UploadToken"), nil
+		}
+	}
+
+	// 确保 images 目录存在
+	imagesDir := filepath.Join(common.UploadDir, "images")
+	if err := os.MkdirAll(imagesDir, 0755); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to create images directory: %v", err)), nil
+	}
+
+	// 检查文件是否已存在
+	filePath := filepath.Join(imagesDir, filepath.Base(filename))
+	if _, err := os.Stat(filePath); err == nil {
+		return mcp.NewToolResultError("File already exists"), nil
+	}
+
+	// 写入图片文件
+	if err := os.WriteFile(filePath, content, 0644); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to write file: %v", err)), nil
+	}
+
+	// 生成缩略图
+	thumbFilePath := filepath.Join(imagesDir, "thumb_"+filepath.Base(filename))
+	thumbImage, err := imaging.Open(filePath)
+	if err != nil {
+		os.Remove(filePath) // 清理无效文件
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid image file, failed to parse: %v", err)), nil
+	}
+	thumbImage = imaging.Resize(thumbImage, 250, 150, imaging.Lanczos)
+	if err := imaging.Save(thumbImage, thumbFilePath); err != nil {
+		os.Remove(filePath)
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to generate thumbnail: %v", err)), nil
+	}
+
+	// 获取文件信息
+	fileInfo, _ := os.Stat(filePath)
+	fileMD5, _ := utils.CalculateMD5(filePath)
+	fileUUID := uuid.NewV4().String()
+
+	// 写入 SQLite 数据库
+	if common.EnableSqlite {
+		go func() {
+			db, err := common.GetDB()
+			if err != nil {
+				ylog.Errorf("MCP", "Failed to get DB for image record: %v", err)
+				return
+			}
+			image := models.UploadImageModel{
+				FileUUID:      fileUUID,
+				Size:          fileInfo.Size(),
+				FileName:      filepath.Base(filename),
+				FilePath:      filePath,
+				ThumbFilePath: thumbFilePath,
+				FileMD5:       fileMD5,
+				DownloadCount: 0,
+				Sort:          1000,
+				UploadTime:    time.Now().Format("2006-01-02 15:04:05"),
+				UploadIP:      "MCP",
+				UploadUser:    "mcp",
+				Status:        "done",
+			}
+			db.Create(&image)
+		}()
+	}
+
+	ylog.Infof("MCP", "Image uploaded via MCP: %s (%s)", filename, utils.FormatSize(fileInfo.Size()))
+
+	type UploadImageResult struct {
+		FileUUID string `json:"file_uuid"`
+		Filename string `json:"filename"`
+		Size     string `json:"size"`
+		MD5      string `json:"md5"`
+		URL      string `json:"url"`
+		ThumbURL string `json:"thumb_url"`
+	}
+
+	uploadResult := UploadImageResult{
+		FileUUID: fileUUID,
+		Filename: filepath.Base(filename),
+		Size:     utils.FormatSize(fileInfo.Size()),
+		MD5:      fileMD5,
+		URL:      "/api/v1/imageManage/download?filename=" + filepath.Base(filename),
+		ThumbURL: "/api/v1/imageManage/download?filename=thumb_" + filepath.Base(filename),
+	}
+
+	resultData, _ := json.MarshalIndent(uploadResult, "", "  ")
+	return mcp.NewToolResultText(string(resultData)), nil
 }
 
 // handleGetStatistics 处理统计信息查询
