@@ -3,24 +3,27 @@ package v1
 import (
 	"encoding/base64"
 	"fmt"
-	"httpcat/internal/common"
-	"httpcat/internal/common/utils"
-	"httpcat/internal/common/ylog"
-	"httpcat/internal/models"
-	"github.com/disintegration/imaging"
-	"github.com/gin-gonic/gin"
-	"github.com/satori/go.uuid"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	"strings"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"httpcat/internal/common"
+	"httpcat/internal/storage/auth"
+	"httpcat/internal/common/utils"
+	"httpcat/internal/common/ylog"
+	"httpcat/internal/models"
+
+	"github.com/disintegration/imaging"
+	"github.com/gin-gonic/gin"
+	"github.com/satori/go.uuid"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func UploadImage(c *gin.Context) {
@@ -30,7 +33,42 @@ func UploadImage(c *gin.Context) {
 		return
 	}
 
-	// FormFile方法会读取参数“upload”后面的文件名，返回值是一个File指针，和一个FileHeader指针，和一个err错误。
+	// UploadToken 校验（与 file/upload 保持一致）
+	if common.EnableUploadToken {
+		uploadToken := c.Request.Header.Get("UploadToken")
+		if uploadToken == "" {
+			common.BadRequest(c, "UploadToken is empty")
+			return
+		}
+
+		parts := strings.Split(uploadToken, ":")
+		if len(parts) != 3 {
+			common.Unauthorized(c, "Invalid UploadToken format")
+			return
+		}
+		appkey := parts[0]
+
+		common.UploadTokenLock.RLock()
+		tokenItem, ok := common.UploadTokenTable[appkey]
+		common.UploadTokenLock.RUnlock()
+		if !ok {
+			common.Unauthorized(c, "Invalid Appkey")
+			return
+		}
+
+		if tokenItem.State == "closed" {
+			common.Unauthorized(c, "Invalid Appkey, appkey is closed")
+			return
+		}
+
+		mac := auth.New(appkey, tokenItem.Appsecret)
+		if !mac.VerifyUploadToken(uploadToken) {
+			common.Unauthorized(c, "UploadToken is invalid")
+			return
+		}
+	}
+
+	// FormFile方法会读取参数"file"后面的文件名，返回值是一个File指针，和一个FileHeader指针，和一个err错误。
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		common.BadRequest(c, "Bad request,check your file~")
@@ -65,26 +103,36 @@ func UploadImage(c *gin.Context) {
 	// 创建一个文件，文件名为filename，这里的返回值out也是一个File指针
 	out, err := os.Create(filePath)
 	if err != nil {
-		log.Fatal(err)
+		ylog.Errorf("uploadImage", "创建文件失败: %v", err)
+		common.CreateResponse(c, common.ErrorCode, fmt.Sprintf("Failed to create file: %v", err))
+		return
 	}
 	defer out.Close()
 
 	// 将file的内容拷贝到out
 	_, err = io.Copy(out, file)
 	if err != nil {
-		log.Fatal(err)
+		ylog.Errorf("uploadImage", "写入文件失败: %v", err)
+		common.CreateResponse(c, common.ErrorCode, fmt.Sprintf("Failed to save file: %v", err))
+		return
 	}
 
 	// 生成缩略图
 	thumbFilePath := filepath.Join(common.UploadDir, "images", "thumb_"+filename)
 	thumbImage, err := imaging.Open(filePath)
 	if err != nil {
-		log.Fatal(err)
+		ylog.Errorf("uploadImage", "解析图片失败（文件可能不是有效图片）: %v", err)
+		// 清理已保存的无效文件
+		os.Remove(filePath)
+		common.CreateResponse(c, common.ErrorCode, fmt.Sprintf("Invalid image file, failed to parse: %v", err))
+		return
 	}
-	thumbImage = imaging.Resize(thumbImage, 250, 150, imaging.Lanczos) // 设置缩略图的宽度为 100
+	thumbImage = imaging.Resize(thumbImage, 250, 150, imaging.Lanczos)
 	err = imaging.Save(thumbImage, thumbFilePath)
 	if err != nil {
-		log.Fatal(err)
+		ylog.Errorf("uploadImage", "保存缩略图失败: %v", err)
+		common.CreateResponse(c, common.ErrorCode, fmt.Sprintf("Failed to generate thumbnail: %v", err))
+		return
 	}
 
 	Ip := c.ClientIP()

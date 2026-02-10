@@ -464,7 +464,7 @@ package_release() {
             zip -rq "${package_name}.zip" "$package_name"
             echo -e "${GREEN}  ✓ ${package_name}.zip${NC}"
         else
-            tar -czf "${package_name}.tar.gz" "$package_name"
+            tar --no-xattrs -czf "${package_name}.tar.gz" "$package_name"
             echo -e "${GREEN}  ✓ ${package_name}.tar.gz${NC}"
         fi
         
