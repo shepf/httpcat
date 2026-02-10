@@ -23,16 +23,25 @@ RELEASE_DIR="$PROJECT_ROOT/release"
 SCRIPTS_DIR="$PROJECT_ROOT/scripts"
 
 # ============ 版本信息 ============
-HTTPCAT_VERSION="${HTTPCAT_VERSION:-v0.2.0}"
+HTTPCAT_VERSION="${HTTPCAT_VERSION:-v0.2.1}"
 HTTPCAT_BUILD=$(date "+%Y%m%d%H%M")
 COMMIT_ID=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 # ============ 目标平台 ============
 # 格式: OS_ARCH
+# 默认平台（-a 参数使用）
 PLATFORMS=(
     "linux_amd64"
     "linux_arm64"
-    "darwin_amd64"
+    "darwin_arm64"
+    "windows_amd64"
+)
+
+# 所有支持的平台（包含已淘汰的 Intel Mac）
+ALL_PLATFORMS=(
+    "linux_amd64"
+    "linux_arm64"
+    "darwin_amd64"    # Intel Mac (已淘汰，需手动指定 -p darwin_amd64)
     "darwin_arm64"
     "windows_amd64"
 )
@@ -46,19 +55,26 @@ show_help() {
     echo "选项:"
     echo "  -h, --help          显示帮助信息"
     echo "  -v, --version VER   指定版本号 (默认: $HTTPCAT_VERSION)"
-    echo "  -p, --platform PLAT 只构建指定平台 (linux_amd64, linux_arm64, darwin_amd64, darwin_arm64, windows_amd64)"
-    echo "  -a, --all           构建所有平台 (默认)"
+    echo "  -p, --platform PLAT 只构建指定平台"
+    echo "  -a, --all           构建所有主流平台 (Linux/macOS ARM64/Windows)"
     echo "  -f, --frontend      构建前端 (默认询问)"
     echo "  -s, --skip-frontend 跳过前端构建"
     echo "  -d, --docker        使用 Docker 构建 (支持完整 CGO)"
     echo "  --clean             只清理构建目录"
     echo ""
+    echo "支持的平台:"
+    echo "  linux_amd64         Linux x86_64"
+    echo "  linux_arm64         Linux ARM64"
+    echo "  darwin_arm64        macOS Apple Silicon (M1/M2/M3/M4)"
+    echo "  darwin_amd64        macOS Intel (已淘汰，需手动指定)"
+    echo "  windows_amd64       Windows x64"
+    echo ""
     echo "示例:"
     echo "  $0                      # 交互式构建"
-    echo "  $0 -a -f                # 构建所有平台，包含前端"
+    echo "  $0 -a -f                # 构建所有主流平台，包含前端"
     echo "  $0 -p linux_amd64       # 只构建 Linux x86_64"
-    echo "  $0 -d                   # 使用 Docker 构建所有 Linux 版本"
-    echo "  $0 -v v1.0.0 -a -f      # 指定版本号构建所有平台"
+    echo "  $0 -d -a -f             # 使用 Docker 构建（完整 SQLite 支持）"
+    echo "  $0 -v v1.0.0 -a -f      # 指定版本号构建"
 }
 
 # ============ 检测操作系统 ============
@@ -219,13 +235,8 @@ build_platform() {
     cd "$PROJECT_ROOT"
 }
 
-# ============ Docker 构建 (完整 CGO 支持) ============
-build_with_docker() {
-    if [ "$DOCKER_AVAILABLE" != "true" ]; then
-        echo -e "${RED}错误: Docker 不可用${NC}"
-        exit 1
-    fi
-    
+# ============ Docker 构建 Linux (完整 CGO 支持) ============
+build_linux_with_docker() {
     echo -e "${BLUE}使用 Docker 构建 Linux 版本...${NC}"
     
     # 默认使用国内镜像，可通过环境变量覆盖
@@ -233,10 +244,9 @@ build_with_docker() {
     local ALPINE_IMAGE="${ALPINE_BASE_IMAGE:-m.daocloud.io/docker.io/alpine:3.19}"
     
     echo -e "  使用镜像: ${GO_IMAGE}, ${ALPINE_IMAGE}"
-    echo -e "  提示: 可通过 GO_BASE_IMAGE 和 ALPINE_BASE_IMAGE 环境变量自定义镜像"
     
     # 创建临时 Dockerfile 用于多平台构建
-    cat > "$PROJECT_ROOT/.build.Dockerfile" << DOCKERFILE
+    cat > "$PROJECT_ROOT/.build-linux.Dockerfile" << DOCKERFILE
 FROM ${GO_IMAGE} AS builder
 
 # 使用国内 Alpine 镜像源
@@ -278,7 +288,7 @@ DOCKERFILE
         --build-arg BUILD_TIME="$HTTPCAT_BUILD" \
         --build-arg COMMIT_ID="$COMMIT_ID" \
         --cache-from httpcat-build:amd64-cache \
-        -f "$PROJECT_ROOT/.build.Dockerfile" \
+        -f "$PROJECT_ROOT/.build-linux.Dockerfile" \
         -t httpcat-build:amd64 "$PROJECT_ROOT"
     
     # 提取二进制文件
@@ -293,7 +303,7 @@ DOCKERFILE
         --build-arg BUILD_TIME="$HTTPCAT_BUILD" \
         --build-arg COMMIT_ID="$COMMIT_ID" \
         --cache-from httpcat-build:arm64-cache \
-        -f "$PROJECT_ROOT/.build.Dockerfile" \
+        -f "$PROJECT_ROOT/.build-linux.Dockerfile" \
         -t httpcat-build:arm64 "$PROJECT_ROOT"
     
     docker run --rm httpcat-build:arm64 > "$RELEASE_DIR/httpcat-linux-arm64"
@@ -301,8 +311,103 @@ DOCKERFILE
     echo -e "${GREEN}✓ httpcat-linux-arm64 [CGO 启用，支持 SQLite]${NC}"
     
     # 清理临时文件
-    rm -f "$PROJECT_ROOT/.build.Dockerfile"
+    rm -f "$PROJECT_ROOT/.build-linux.Dockerfile"
     docker rmi httpcat-build:amd64 httpcat-build:arm64 2>/dev/null || true
+}
+
+# ============ Docker 构建 Windows (完整 CGO 支持) ============
+build_windows_with_docker() {
+    echo -e "${BLUE}使用 Docker 构建 Windows 版本 (带 SQLite 支持)...${NC}"
+    
+    # 使用 Debian 镜像，因为 mingw-w64 在 Debian 上支持更好
+    local GO_DEBIAN_IMAGE="${GO_DEBIAN_IMAGE:-m.daocloud.io/docker.io/golang:1.23-bookworm}"
+    
+    echo -e "  使用镜像: ${GO_DEBIAN_IMAGE}"
+    
+    # 创建临时 Dockerfile 用于 Windows 构建
+    cat > "$PROJECT_ROOT/.build-windows.Dockerfile" << 'DOCKERFILE'
+ARG GO_IMAGE
+FROM ${GO_IMAGE} AS builder
+
+# 使用国内 Debian 镜像源
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+    sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list 2>/dev/null || true
+
+# 安装 mingw-w64 交叉编译工具链
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc-mingw-w64-x86-64 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Go 模块代理（国内加速）
+ENV GOPROXY=https://goproxy.cn,direct
+ENV GOSUMDB=sum.golang.google.cn
+
+WORKDIR /app
+COPY server-go/go.mod server-go/go.sum ./
+RUN go mod download
+COPY server-go/ ./
+
+ARG VERSION
+ARG BUILD_TIME
+ARG COMMIT_ID
+
+# 使用 mingw-w64 交叉编译 Windows 版本
+RUN CGO_ENABLED=1 \
+    GOOS=windows \
+    GOARCH=amd64 \
+    CC=x86_64-w64-mingw32-gcc \
+    go build -ldflags "-s -w -X httpcat/internal/common.Version=${VERSION} -X httpcat/internal/common.Build=${BUILD_TIME} -X httpcat/internal/common.Commit=${COMMIT_ID}" \
+    -o /httpcat.exe ./cmd/httpcat.go
+DOCKERFILE
+    
+    # 构建 Windows amd64
+    echo -e "${BLUE}构建 Windows amd64 (Docker + mingw-w64)...${NC}"
+    docker build \
+        --build-arg GO_IMAGE="$GO_DEBIAN_IMAGE" \
+        --build-arg VERSION="$HTTPCAT_VERSION" \
+        --build-arg BUILD_TIME="$HTTPCAT_BUILD" \
+        --build-arg COMMIT_ID="$COMMIT_ID" \
+        -f "$PROJECT_ROOT/.build-windows.Dockerfile" \
+        -t httpcat-build:windows "$PROJECT_ROOT"
+    
+    # 提取 Windows 可执行文件
+    docker run --rm httpcat-build:windows cat /httpcat.exe > "$RELEASE_DIR/httpcat-windows-amd64.exe"
+    
+    local size=$(ls -lh "$RELEASE_DIR/httpcat-windows-amd64.exe" | awk '{print $5}')
+    echo -e "${GREEN}✓ httpcat-windows-amd64.exe ($size) [CGO 启用，支持 SQLite]${NC}"
+    
+    # 清理临时文件
+    rm -f "$PROJECT_ROOT/.build-windows.Dockerfile"
+    docker rmi httpcat-build:windows 2>/dev/null || true
+}
+
+# ============ Docker 构建 (完整 CGO 支持) ============
+build_with_docker() {
+    if [ "$DOCKER_AVAILABLE" != "true" ]; then
+        echo -e "${RED}错误: Docker 不可用${NC}"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}使用 Docker 构建（完整 CGO/SQLite 支持）...${NC}"
+    echo -e "  提示: 可通过 GO_BASE_IMAGE、ALPINE_BASE_IMAGE、GO_DEBIAN_IMAGE 环境变量自定义镜像"
+    
+    # 检查是否需要构建 Linux
+    local need_linux=false
+    local need_windows=false
+    for platform in "${BUILD_PLATFORMS[@]}"; do
+        [[ "$platform" == linux_* ]] && need_linux=true
+        [[ "$platform" == windows_* ]] && need_windows=true
+    done
+    
+    # 构建 Linux 版本
+    if [ "$need_linux" = true ]; then
+        build_linux_with_docker
+    fi
+    
+    # 构建 Windows 版本
+    if [ "$need_windows" = true ]; then
+        build_windows_with_docker
+    fi
 }
 
 # ============ 打包发布文件 ============
@@ -479,15 +584,15 @@ main() {
     # Go 依赖
     prepare_go_deps
     
-    # 如果没有指定平台，使用默认的三个主要平台
+    # 如果没有指定平台，使用默认平台
     if [ ${#BUILD_PLATFORMS[@]} -eq 0 ]; then
         BUILD_PLATFORMS=("linux_amd64" "linux_arm64" "darwin_arm64")
         
         # 交互式选择
         echo ""
         echo -e "${BLUE}选择构建平台:${NC}"
-        echo "  1) Linux x86_64 + Linux ARM64 + macOS ARM64 (推荐)"
-        echo "  2) 所有平台 (Linux/macOS/Windows, amd64/arm64)"
+        echo "  1) Linux + macOS ARM64 (推荐，适合大多数用户)"
+        echo "  2) 所有主流平台 (Linux + macOS ARM64 + Windows)"
         echo "  3) 仅 Linux (amd64 + arm64)"
         echo "  4) 仅当前平台 (${HOST_OS}_${HOST_ARCH})"
         read -p "请选择 [1]: " choice
@@ -506,26 +611,32 @@ main() {
     printf '  - %s\n' "${BUILD_PLATFORMS[@]}"
     echo ""
     
-    # 检查是否需要 Docker（macOS 交叉编译 Linux 时）
+    # 检查是否需要 Docker（交叉编译 Linux 或 Windows 时）
     local need_docker_for_linux=false
-    if [ "$HOST_OS" = "darwin" ]; then
-        for platform in "${BUILD_PLATFORMS[@]}"; do
-            if [[ "$platform" == linux_* ]]; then
-                need_docker_for_linux=true
-                break
-            fi
-        done
-    fi
+    local need_docker_for_windows=false
     
-    # macOS 上编译 Linux 版本时，自动建议使用 Docker
-    if [ "$need_docker_for_linux" = true ] && [ "$USE_DOCKER" != true ]; then
-        echo -e "${YELLOW}⚠ 检测到在 macOS 上交叉编译 Linux 版本${NC}"
-        echo -e "${YELLOW}  交叉编译的 Linux 版本将不支持 SQLite（无法使用用户登录等功能）${NC}"
+    for platform in "${BUILD_PLATFORMS[@]}"; do
+        # macOS/Windows 上交叉编译 Linux 需要 Docker
+        if [[ "$platform" == linux_* ]] && [ "$HOST_OS" != "linux" ]; then
+            need_docker_for_linux=true
+        fi
+        # 任何非 Windows 系统交叉编译 Windows 需要 Docker
+        if [[ "$platform" == windows_* ]] && [ "$HOST_OS" != "windows" ]; then
+            need_docker_for_windows=true
+        fi
+    done
+    
+    # 交叉编译时，自动建议使用 Docker
+    if { [ "$need_docker_for_linux" = true ] || [ "$need_docker_for_windows" = true ]; } && [ "$USE_DOCKER" != true ]; then
+        echo -e "${YELLOW}⚠ 检测到交叉编译:${NC}"
+        [ "$need_docker_for_linux" = true ] && echo -e "${YELLOW}  - Linux 版本（当前系统: $HOST_OS）${NC}"
+        [ "$need_docker_for_windows" = true ] && echo -e "${YELLOW}  - Windows 版本（当前系统: $HOST_OS）${NC}"
+        echo -e "${YELLOW}  交叉编译的版本将不支持 SQLite（无法使用用户登录等功能）${NC}"
         if [ "$DOCKER_AVAILABLE" = true ]; then
             echo -e "${YELLOW}  建议使用 Docker 构建以获得完整功能${NC}"
             # 非交互式环境默认使用 Docker
             if [ -t 0 ]; then
-                read -p "是否使用 Docker 构建 Linux 版本？(y/n) [y]: " use_docker_answer < /dev/tty
+                read -p "是否使用 Docker 构建？(y/n) [y]: " use_docker_answer < /dev/tty
                 use_docker_answer=${use_docker_answer:-y}
                 if [ "$use_docker_answer" = "y" ] || [ "$use_docker_answer" = "Y" ]; then
                     USE_DOCKER=true
@@ -540,17 +651,18 @@ main() {
         echo ""
     fi
     
-    # Docker 构建 Linux 版本
+    # Docker 构建
     if [ "$USE_DOCKER" = true ]; then
         build_with_docker
         
-        # 构建非 Linux 平台（本机）
+        # 构建非 Linux/Windows 平台（本机）
         for platform in "${BUILD_PLATFORMS[@]}"; do
             [[ "$platform" == linux_* ]] && continue
+            [[ "$platform" == windows_* ]] && continue
             build_platform "$platform"
         done
     else
-        # 普通构建（Linux 本机编译或明确不使用 Docker）
+        # 普通构建（本机编译或明确不使用 Docker）
         for platform in "${BUILD_PLATFORMS[@]}"; do
             build_platform "$platform"
         done

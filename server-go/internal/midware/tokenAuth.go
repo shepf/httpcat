@@ -1,19 +1,23 @@
 package midware
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	"httpcat/internal/common"
 	"httpcat/internal/common/utils"
 	"httpcat/internal/common/ylog"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"github.com/rs/xid"
-	"io"
-	"net/http"
-	"strings"
-	"time"
 )
 
 var whiteUrlList = []string{
@@ -188,8 +192,115 @@ func TokenAuth() gin.HandlerFunc {
 			userName = currentUser.(string)
 		}
 
-		// c.Set("user", userName)：将上下文中的键值对 "user" 设置为 userName。
-		//这样，在后续的处理器函数或中间件中可以通过 c.Get("user") 方法获取到该值，用于后续的业务逻辑处理。
+	// c.Set("user", userName)：将上下文中的键值对 "user" 设置为 userName。
+	//这样，在后续的处理器函数或中间件中可以通过 c.Get("user") 方法获取到该值，用于后续的业务逻辑处理。
+		c.Set("user", userName)
+		c.Next()
+		return
+	}
+}
+
+// tryAKSKAuth 尝试使用 AK/SK 签名认证，成功返回 true，未携带 AK/SK 头返回 false
+func tryAKSKAuth(c *gin.Context) bool {
+	akHeader := c.Request.Header.Get("AccessKey")
+	sign := c.Request.Header.Get("Signature")
+	timeStamp := c.Request.Header.Get("TimeStamp")
+
+	// 没有 AK/SK 头，说明不是 Open API 请求
+	if akHeader == "" || sign == "" || timeStamp == "" {
+		return false
+	}
+
+	// 校验时间戳
+	iTime, err := strconv.ParseInt(timeStamp, 10, 64)
+	if err != nil {
+		abort(c, fmt.Sprintf("TimeStamp Error: %s", err.Error()))
+		return true
+	}
+	timeDiff := time.Now().Unix() - iTime
+	if timeDiff >= 60 || timeDiff <= -60 {
+		abort(c, fmt.Sprintf("timestamp out of range (±60s), diff=%ds", timeDiff))
+		return true
+	}
+
+	// 校验签名
+	sk := getSecKey(akHeader)
+	if sk == "" {
+		abort(c, "invalid AccessKey")
+		return true
+	}
+
+	requestBody, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		abort(c, err.Error())
+		return true
+	}
+	_ = c.Request.Body.Close()
+	c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
+
+	serverSign := generateSign(c.Request.Method, formatURLPath(c.Request.URL.Path), c.Request.URL.RawQuery, akHeader, timeStamp, sk, requestBody)
+	if !signEqual(serverSign, sign) {
+		ylog.Errorf("tryAKSKAuth", "signature mismatch for ak=%s method=%s path=%s", akHeader, c.Request.Method, c.Request.URL.Path)
+		abort(c, "signature mismatch")
+		return true
+	}
+
+	// AK/SK 认证成功，设置用户为 ak 标识
+	c.Set("user", fmt.Sprintf("openapi:%s", akHeader))
+	c.Next()
+	return true
+}
+
+// TokenOrAKSKAuth 合并认证中间件：先尝试 AK/SK，不满足则走 JWT
+func TokenOrAKSKAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 白名单豁免
+		if utils.Contains(whiteUrlList, c.Request.URL.Path) {
+			c.Next()
+			return
+		}
+
+		// 如果开启了 Open API，优先尝试 AK/SK 认证
+		if common.OpenAPIEnable {
+			if tryAKSKAuth(c) {
+				return // AK/SK 已处理（成功或失败都已响应）
+			}
+		}
+
+		// 回退到 JWT Token 认证
+		token := c.GetHeader("Authorization")
+		if token == "" {
+			ylog.Errorf("AuthRequired", "token is empty")
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		if len(token) > 7 && strings.ToUpper(token[0:7]) == "BEARER " {
+			token = token[7:]
+		}
+
+		var userName string
+
+		if strings.HasPrefix(token, "seesion-") {
+			// session token (Redis, 当前已注释)
+		} else {
+			payload, err := VerifyToken(token, APITokenSecret)
+			if err != nil {
+				ylog.Errorf("AuthRequired", err.Error())
+				c.AbortWithStatus(http.StatusUnauthorized)
+				return
+			}
+			if payload == nil {
+				c.AbortWithStatus(http.StatusUnauthorized)
+				return
+			}
+			currentUser, ok := (*payload)["username"]
+			if currentUser == "" || !ok {
+				c.AbortWithStatus(http.StatusUnauthorized)
+				return
+			}
+			userName = currentUser.(string)
+		}
+
 		c.Set("user", userName)
 		c.Next()
 		return

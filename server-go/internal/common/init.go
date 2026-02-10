@@ -101,6 +101,9 @@ func initDefault() {
 	McpEnable = UserConfig.GetBool("server.mcp.enable")
 	McpAuthToken = UserConfig.GetString("server.mcp.auth_token")
 
+	// for open api (AK/SK)
+	OpenAPIEnable = UserConfig.GetBool("server.http.auth.open_api_enable")
+
 	// for p2p
 	P2pEnable = UserConfig.GetBool("server.p2p.enable")
 	P2pListenIP = UserConfig.GetString("server.p2p.listen.ip")

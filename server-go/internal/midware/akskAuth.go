@@ -23,7 +23,8 @@ var (
 	sk = common.SvrSK
 )
 
-func getSecKec(ak string) string {
+// getSecKey 根据 AccessKey 查找对应的 SecretKey
+func getSecKey(ak string) string {
 	sk, ok := common.HttpAkSkMap[ak]
 	if !ok {
 		return ""
@@ -31,23 +32,36 @@ func getSecKec(ak string) string {
 	return sk
 }
 
-func sha256byteArr(in []byte) string {
-	if in == nil || len(in) == 0 {
-		return ""
-	}
+// sha256Hex 计算字节数组的 SHA256 哈希值，返回十六进制字符串。
+// 即使输入为空（nil 或长度为 0），也会计算空字符串的 SHA256 值。
+// 这确保签名字符串末尾始终有确定值，避免客户端集成时的换行符陷阱（如 shell $() 会吞末尾换行）。
+// 空 body 的 SHA256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+func sha256Hex(in []byte) string {
 	h := sha256.New()
-	h.Write(in)
+	if len(in) > 0 {
+		h.Write(in)
+	}
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+// generateSign 生成 HMAC-SHA256 签名。
+// 签名字符串格式：{Method}\n{Path}\n{Query}\n{AK}\n{Timestamp}\n{BodySHA256}
+// 各字段之间使用真正的换行符（0x0a）分隔，与 AWS Signature V4 等行业标准一致。
 func generateSign(method, url, query, ak, timestamp, sk string, requestBody []byte) string {
-	return hmacSha256(fmt.Sprintf(`%s\n%s\n%s\n%s\n%s\n%s`, method, url, query, ak, timestamp, sha256byteArr(requestBody)), sk)
+	signStr := fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%s", method, url, query, ak, timestamp, sha256Hex(requestBody))
+	return hmacSha256(signStr, sk)
 }
 
+// hmacSha256 使用 HMAC-SHA256 算法对数据签名，返回十六进制字符串。
 func hmacSha256(data string, secret string) string {
 	h := hmac.New(sha256.New, []byte(secret))
 	h.Write([]byte(data))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// signEqual 使用恒定时间比较两个签名，防止时序攻击。
+func signEqual(a, b string) bool {
+	return hmac.Equal([]byte(a), []byte(b))
 }
 
 func formatURLPath(in string) string {
@@ -75,22 +89,22 @@ func AKSKAuth() gin.HandlerFunc {
 			return
 		}
 
-		//check time
+		// check time
 		iTime, err = strconv.ParseInt(timeStamp, 10, 64)
 		if err != nil {
-			abort(c, fmt.Sprintf(`TimeStamp Error %s`, err.Error()))
+			abort(c, fmt.Sprintf("TimeStamp Error: %s", err.Error()))
 			return
 		}
 		timeDiff = time.Now().Unix() - iTime
 		if timeDiff >= 60 || timeDiff <= -60 {
-			abort(c, "timestamp error")
+			abort(c, fmt.Sprintf("timestamp out of range (±60s), diff=%ds", timeDiff))
 			return
 		}
 
-		//check signature
-		sk = getSecKec(ak)
+		// check signature
+		sk = getSecKey(ak)
 		if sk == "" {
-			abort(c, "User not exist")
+			abort(c, "invalid AccessKey")
 			return
 		}
 		requestBody, err = io.ReadAll(c.Request.Body)
@@ -102,12 +116,12 @@ func AKSKAuth() gin.HandlerFunc {
 		c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
 
 		serverSign = generateSign(c.Request.Method, formatURLPath(c.Request.URL.Path), c.Request.URL.RawQuery, ak, timeStamp, sk, requestBody)
-		if serverSign != sign {
+		if !signEqual(serverSign, sign) {
+			ylog.Errorf("AKSKAuth", "signature mismatch for ak=%s method=%s path=%s", ak, c.Request.Method, c.Request.URL.Path)
 			abort(c, "signature error")
 			return
 		}
 		c.Next()
-		return
 	}
 }
 

@@ -51,6 +51,8 @@ var (
 	McpEnable    bool   // 是否启用 MCP Server
 	McpAuthToken string // MCP 认证 Token（可选，为空则不验证）
 
+	OpenAPIEnable bool // 是否启用 Open API（AK/SK 签名认证）
+
 	PProfEnable bool
 	PProfPort   int //pprof
 )

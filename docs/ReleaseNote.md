@@ -1,3 +1,23 @@
+## v0.2.1
+
+### ✨ 新功能
+1. **Open API（AK/SK 签名认证）**
+   - 新增 AK/SK 签名认证机制，支持脚本/CI/AI 直接调用所有 API
+   - 签名算法基于 HMAC-SHA256，与 AWS Signature V4 行业标准一致
+   - 支持恒定时间比较防时序攻击、±60 秒时间窗口防重放攻击
+
+2. **认证合并中间件**
+   - 新增 `TokenOrAKSKAuth` 合并中间件，同一接口同时支持 JWT 和 AK/SK 两种认证方式
+   - 白名单机制（upload/download/login）保持不变
+
+### 📚 文档优化
+- README 新增 Open API 完整文档：签名算法、接口列表、调用示例
+- 新增 AK/SK 场景下上传文件的端到端流程说明（Shell + Python 示例）
+- 新增 POST 请求签名示例（带 JSON Body）
+- 新增 OpenClaw + httpcat 联动部署指南
+
+---
+
 ## v0.2.0
 🎉 **重大更新：新增 MCP (Model Context Protocol) 支持！**
 

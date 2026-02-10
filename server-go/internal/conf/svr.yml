@@ -14,6 +14,7 @@ server:
     port: 8888
     auth:
       enable: false
+      open_api_enable: false  # 是否启用 Open API（AK/SK 签名认证），启用后可通过 AccessKey+Signature+TimeStamp 头调用所有 API
       aksk:
         0376b2a4c481sef5: 60b29se7164027072799f565eb964dxx
     jwt_secret: 164027072799f565eb
