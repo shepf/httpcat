@@ -58,3 +58,6 @@ internal/conf/*.local.yml
 tmp/
 temp/
 *.tmp
+
+
+DEPLOYMENT_STATUS.md
