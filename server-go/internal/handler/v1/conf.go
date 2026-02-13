@@ -3,6 +3,9 @@ package v1
 import (
 	"fmt"
 	"httpcat/internal/common"
+	"os"
+	"path/filepath"
+
 	"github.com/gin-gonic/gin"
 	"github.com/shirou/gopsutil/process"
 	"time"
@@ -38,11 +41,26 @@ func GetConfInfo(c *gin.Context) {
 	// 上传文件开关状态
 	fileUploadEnable := common.FileUploadEnable
 
+	// 获取工作目录
+	workDir, err := os.Getwd()
+	if err != nil {
+		workDir = "-"
+	}
+
+	// 将相对路径转为绝对路径
+	absUploadDir, _ := filepath.Abs(uploadDir)
+	absDownloadDir, _ := filepath.Abs(downloadDir)
+	absWebDir, _ := filepath.Abs(webDir)
+
 	common.CreateResponse(c, common.SuccessCode, gin.H{
 		"uploadDir":        uploadDir,
 		"downloadDir":      downloadDir,
 		"webDir":           webDir,
 		"fileUploadEnable": fileUploadEnable,
+		"workDir":          workDir,
+		"absUploadDir":     absUploadDir,
+		"absDownloadDir":   absDownloadDir,
+		"absWebDir":        absWebDir,
 	})
 }
 

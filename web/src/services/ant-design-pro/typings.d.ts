@@ -133,6 +133,10 @@ declare namespace API {
     fileUploadEnable?: boolean;
     uploadDir?: string;
     webDir?: string;
+    workDir?: string;
+    absUploadDir?: string;
+    absDownloadDir?: string;
+    absWebDir?: string;
   }
 
   // 使用泛型定义请求返回数据类型

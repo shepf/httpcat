@@ -103,9 +103,10 @@ export default () => {
           dataSource={{
             version: versionData.version,
             httpcat_uptime: versionData.uptime,
-            upload_path: confData.uploadDir,
-            download_path: confData.downloadDir,
-            web_path: confData.webDir,
+            work_dir: confData.workDir,
+            upload_path: confData.absUploadDir || confData.uploadDir,
+            download_path: confData.absDownloadDir || confData.downloadDir,
+            web_path: confData.absWebDir || confData.webDir,
             fileUploadEnable: confData.fileUploadEnable,
           }}
           emptyText="空"
@@ -134,6 +135,12 @@ export default () => {
               title: 'httpcat持续运行时间',
               key: 'httpcat_uptime',
               dataIndex: 'httpcat_uptime',
+            },
+            {
+              title: '项目工作目录',
+              key: 'work_dir',
+              dataIndex: 'work_dir',
+              copyable: true,
             },
             {
               title: '上传文件路径',
