@@ -49,9 +49,15 @@
     access: 'canAdmin',
     routes: [
       {
+        path: '/file_manage/file-list-page',
+        name: 'file-list-page',
+        icon: 'folder',
+        component: './FileManage/FileList',
+      },
+      {
         path: '/file_manage/image-manage-page',
         name: 'image-manage-page',
-        icon: 'smile',
+        icon: 'picture',
         component: './FileManage/ImageManage',
       },
       {

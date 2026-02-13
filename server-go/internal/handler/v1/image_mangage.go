@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"httpcat/internal/common"
+	"httpcat/internal/midware"
 	"httpcat/internal/storage/auth"
 	"httpcat/internal/common/utils"
 	"httpcat/internal/common/ylog"
@@ -33,8 +34,21 @@ func UploadImage(c *gin.Context) {
 		return
 	}
 
-	// UploadToken 校验（与 file/upload 保持一致）
-	if common.EnableUploadToken {
+	// 认证校验：优先 JWT（已登录用户），其次 UploadToken（外部调用）
+	jwtAuth := false
+	if authHeader := c.Request.Header.Get("Authorization"); authHeader != "" {
+		tokenStr := authHeader
+		if len(tokenStr) > 7 && strings.ToUpper(tokenStr[0:7]) == "BEARER " {
+			tokenStr = tokenStr[7:]
+		}
+		if tokenStr != "" {
+			if _, err := midware.VerifyToken(tokenStr, []byte(common.JwtSecret)); err == nil {
+				jwtAuth = true
+			}
+		}
+	}
+
+	if !jwtAuth && common.EnableUploadToken {
 		uploadToken := c.Request.Header.Get("UploadToken")
 		if uploadToken == "" {
 			common.BadRequest(c, "UploadToken is empty")
@@ -66,6 +80,9 @@ func UploadImage(c *gin.Context) {
 			common.Unauthorized(c, "UploadToken is invalid")
 			return
 		}
+	} else if !jwtAuth {
+		common.Unauthorized(c, "Authentication required")
+		return
 	}
 
 	// FormFile方法会读取参数"file"后面的文件名，返回值是一个File指针，和一个FileHeader指针，和一个err错误。

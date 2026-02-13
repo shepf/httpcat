@@ -35,32 +35,8 @@ declare namespace API {
     pageSize?: number;
   };
 
-  type RuleListItem = {
-    key?: number;
-    disabled?: boolean;
-    href?: string;
-    avatar?: string;
-    name?: string;
-    owner?: string;
-    desc?: string;
-    callNo?: number;
-    status?: number;
-    updatedAt?: string;
-    createdAt?: string;
-    progress?: number;
-  };
-
-  type RuleList = {
-    data?: RuleListItem[];
-    /** 列表的内容总数 */
-    total?: number;
-    success?: boolean;
-  };
-
   type UploadHistoryLogsList = {
-    /** 业务约定的错误码 */
     errorCode?: number;
-    /** 业务上的错误信息 */
     msg?: string;
     data?: {
       list: UploadHistoryLogItem[];
@@ -69,7 +45,6 @@ declare namespace API {
       total: number;
     };
   };
-
 
   type UploadHistoryLogItem = {
     id?: number;
@@ -80,13 +55,7 @@ declare namespace API {
     file_md5?: string;
     file_created_time?: number;
     file_modified_time?: number;
-    isFileExist?: boolean; // 添加 isFileExist 属性
-  };
-
-
-  type FakeCaptcha = {
-    code?: number;
-    status?: string;
+    isFileExist?: boolean;
   };
 
   type LoginParams = {
@@ -97,43 +66,16 @@ declare namespace API {
   };
 
   type ErrorResponse = {
-    /** 业务约定的错误码 */
     errorCode?: number;
-    /** 业务上的错误信息 */
     msg?: string;
     data?: string;
-
-  };
-
-  type NoticeIconList = {
-    data?: NoticeIconItem[];
-    /** 列表的内容总数 */
-    total?: number;
-    success?: boolean;
-  };
-
-  type NoticeIconItemType = 'notification' | 'message' | 'event';
-
-  type NoticeIconItem = {
-    id?: string;
-    extra?: string;
-    key?: string;
-    read?: boolean;
-    avatar?: string;
-    title?: string;
-    status?: string;
-    datetime?: string;
-    description?: string;
-    type?: NoticeIconItemType;
   };
 
   // 上传token管理相关数据类型定义
   type UploadTokenLists = {
-      /** 业务约定的错误码 */
-      errorCode: string;
-      /** 业务上的错误信息 */
-      msg?: string;
-      data?: UploadTokenItem[];
+    errorCode: string;
+    msg?: string;
+    data?: UploadTokenItem[];
   };
 
   type UploadTokenItem = {
@@ -146,7 +88,6 @@ declare namespace API {
     created_at?: number;
     is_sys_built?: boolean;
   };
-
 
   // 版本信息返回格式
   interface AntResponseData<T> {
@@ -161,15 +102,11 @@ declare namespace API {
     version?: string;
     uptime?: string;
   }
-  
 
   type UploadAvailableSpace = {
     freeSpace?: number;
     usedSpace?: number;
-  }
-
-
-
+  };
 
   interface UploadStatistics {
     monthPercentage?: string;
@@ -180,7 +117,7 @@ declare namespace API {
     yesterdayUploadCount?: number;
     totalUploadCount?: number;
   }
-  
+
   interface DownloadStatistics {
     todayDownloadCount?: number;
     yesterdayDownloadCount?: number;
@@ -198,12 +135,9 @@ declare namespace API {
     webDir?: string;
   }
 
-
-  //使用泛型定义请求返回数据类型
+  // 使用泛型定义请求返回数据类型
   type MyResponse<T> = {
-    /** 业务约定的错误码 */
     errorCode?: number;
-    /** 业务上的错误信息 */
     msg?: string;
     data?: T;
   };
@@ -216,4 +150,33 @@ declare namespace API {
     size?: string;
   }
 
+  // 图片管理相关类型
+  interface ImageItem {
+    FileName: string;
+    ThumbnailBase64?: string;
+  }
+
+  // 文件列表项
+  interface FileItem {
+    FileName: string;
+    LastModified: string;
+    Size: string;
+  }
+
+  interface ImageListResponse {
+    data: ImageItem[];
+    pagination: {
+      page: number;
+      pageSize: number;
+      totalItems: number;
+    };
+  }
+
+  interface ImageUploadResponse {
+    data: {
+      url: string;
+      thumbUrl: string;
+      name: string;
+    };
+  }
 }

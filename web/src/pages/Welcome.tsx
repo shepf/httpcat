@@ -1,13 +1,15 @@
-import { InboxOutlined } from '@ant-design/icons';
+import { CloudUploadOutlined, DownloadOutlined, InboxOutlined, RocketOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
-import { Alert, Card, message, Typography, UploadProps } from 'antd';
+import { Alert, Card, message, Space, Spin, Tag, Typography, UploadProps } from 'antd';
 import Dragger from 'antd/lib/upload/Dragger';
-import axios, { AxiosProgressEvent, AxiosResponse } from 'axios';
-import React from 'react';
-import { FormattedMessage, request, useIntl } from 'umi';
+import React, { useEffect, useState } from 'react';
+import { getFirstUploadToken, getVersion } from '@/services/ant-design-pro/api';
+import request from 'umi-request';
 import styles from './Welcome.less';
 
-const CodePreview: React.FC = ({ children }) => (
+const { Text } = Typography;
+
+const CodePreview: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <pre className={styles.pre}>
     <code>
       <Typography.Text copyable>{children}</Typography.Text>
@@ -16,111 +18,166 @@ const CodePreview: React.FC = ({ children }) => (
 );
 
 const Welcome: React.FC = () => {
-  const intl = useIntl();
-
+  const [uploadToken, setUploadToken] = useState<string>('');
+  const [tokenLoading, setTokenLoading] = useState<boolean>(true);
+  const [currentVersion, setCurrentVersion] = useState<string>('');
+  const [latestVersion, setLatestVersion] = useState<string>('');
+  const [hasNewVersion, setHasNewVersion] = useState<boolean>(false);
 
   const host = window.location.host;
   const apiUrl = `http://${host}/api/v1/file/`;
 
-  type UploadRequestError = Error;
+  useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        const token = await getFirstUploadToken();
+        setUploadToken(token);
+      } catch (error) {
+        console.error('获取上传Token失败:', error);
+      } finally {
+        setTokenLoading(false);
+      }
+    };
+    fetchToken();
+
+    // 获取当前版本
+    const fetchVersion = async () => {
+      try {
+        const res = await getVersion();
+        const ver = res.data?.version || '';
+        setCurrentVersion(ver);
+        // 检查 GitHub 最新版本
+        try {
+          const ghRes = await fetch('https://api.github.com/repos/shepf/httpcat/releases/latest');
+          if (ghRes.ok) {
+            const ghData = await ghRes.json();
+            const latest = ghData.tag_name || '';
+            setLatestVersion(latest);
+            if (latest && ver && latest.replace(/^v/, '') !== ver.replace(/^v/, '')) {
+              setHasNewVersion(true);
+            }
+          }
+        } catch (_) { /* 网络不通忽略 */ }
+      } catch (_) { /* 忽略 */ }
+    };
+    fetchVersion();
+  }, []);
+
   const props: UploadProps = {
     name: 'file',
     multiple: true,
-     showUploadList: true, // 显示上传列表
-    //覆盖默认的上传行为，自定义上传实现
+    showUploadList: true,
     customRequest: async ({ file, onSuccess, onError, onProgress }) => {
-      const formData = new FormData();
-      formData.append('f1', file);
-  
-      const headers = {
-        UploadToken: 'httpcat:dZE8NVvimYNbV-YpJ9EFMKg3YaM=:eyJkZWFkbGluZSI6MH0=',
-      };
-  
-      try {
-        const response: AxiosResponse = await axios.post(`${apiUrl}upload`, formData, {
-          headers: headers,
-          onUploadProgress: (progressEvent: AxiosProgressEvent) => {
-            const percent = Math.round((progressEvent.loaded * 100) / (progressEvent.total ?? 1));
-            onProgress?.({ percent });
-          },
-        });
-  
-        const data = response.data;
-        onSuccess?.(data);
-      } catch (error) {
-        onError?.(error as UploadRequestError);
-        console.log("customRequest error:", error);
-        message.error("网络连接失败，请检查网络状态。");
+      if (!uploadToken) {
+        message.error('暂无可用的上传Token，请先在管理页面创建');
+        onError?.(new Error('No upload token'));
         return;
       }
+
+      const formData = new FormData();
+      formData.append('f1', file);
+
+      try {
+        const response = await request('/api/v1/file/upload', {
+          method: 'POST',
+          data: formData,
+          headers: { UploadToken: uploadToken },
+          requestType: 'form',
+        });
+        onSuccess?.(response);
+      } catch (error) {
+        onError?.(error as Error);
+        message.error('上传失败，请检查网络连接');
+      }
     },
-    // 在antd的Upload组件中，action属性用于指定上传文件的URL，但无法直接设置请求头。如果您需要设置请求头，可以使用beforeUpload属性来自定义上传行为
-    // action: `${apiUrl}upload`,
-    onChange(info) { //上传中、完成、失败都会调用这个函数
+    onChange(info) {
       const { status } = info.file;
-      if (status !== 'uploading') {
-        console.log(info.file, info.fileList);
-      }
       if (status === 'done') {
-        message.success(`${info.file.name} file uploaded successfully.`);
+        message.success(`${info.file.name} 上传成功`);
       } else if (status === 'error') {
-        message.error(`${info.file.name} file upload failed.`);
+        message.error(`${info.file.name} 上传失败`);
       }
     },
-    onDrop(e) {
-      console.log('Dropped files', e.dataTransfer.files);
-    },
-
-
   };
 
   return (
     <PageContainer>
-      <Card>
+      {hasNewVersion ? (
         <Alert
-          message={intl.formatMessage({
-            id: 'pages.welcome.alertMessage',
-            defaultMessage: 'Faster and stronger heavy-duty components have been released.',
-          })}
-          type="success"
-          showIcon
+          type="info"
           banner
-          style={{
-            margin: -12,
-            marginBottom: 24,
-          }}
+          showIcon
+          icon={<RocketOutlined />}
+          message={
+            <span>
+              当前版本 <Tag color="default">{currentVersion}</Tag>
+              ，发现新版本 <Tag color="blue">{latestVersion}</Tag>
+              <a
+                href="https://github.com/shepf/httpcat/releases"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ marginLeft: 8 }}
+              >
+                前往更新
+              </a>
+            </span>
+          }
+          style={{ marginBottom: 16, borderRadius: 6 }}
         />
-        <Typography.Text strong>
-          <a
-            // href="https://procomponents.ant.design/components/table"
-            href="/welcome"
-            rel="noopener noreferrer"
-            target="__blank"
-          >
-            <FormattedMessage id="pages.welcome.link" defaultMessage="Welcome" />
-          </a>
-        </Typography.Text>
-        <p>上传命令demo：</p>
-        <CodePreview>
-        {`curl -v -F "f1=@/root/test.md" -H "UploadToken: httpcat:dZE8NVvimYNbV-YpJ9EFMKg3YaM=:eyJkZWFkbGluZSI6MH0=" ${apiUrl}upload`}
-        </CodePreview>
-        <p>下载命令demo：</p>
-        <CodePreview>
-        {`wget ${apiUrl}download?filename=test.md`}
-        </CodePreview>
+      ) : currentVersion ? (
+        <Alert
+          type="success"
+          banner
+          showIcon
+          icon={<RocketOutlined />}
+          message={
+            <span>
+              当前版本 <Tag color="green">{currentVersion}</Tag> 已是最新
+            </span>
+          }
+          style={{ marginBottom: 16, borderRadius: 6 }}
+        />
+      ) : null}
 
+      <Card title="快捷上传" className={styles.uploadCard} style={{ marginTop: 16 }}>
+        {tokenLoading ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Spin tip="加载中..." />
+          </div>
+        ) : !uploadToken ? (
+          <Alert
+            message="暂无可用的上传Token"
+            description="请先前往「管理 > 上传Token管理」页面创建并生成 Token"
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        ) : null}
+        <Dragger {...props} disabled={!uploadToken}>
+          <p className="ant-upload-drag-icon">
+            <InboxOutlined />
+          </p>
+          <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
+          <p className="ant-upload-hint">支持单个或批量文件上传</p>
+        </Dragger>
       </Card>
 
-      <Dragger {...props}>
-        <p className="ant-upload-drag-icon">
-          <InboxOutlined />
-        </p>
-        <p className="ant-upload-text">Click or drag file to this area to upload</p>
-        <p className="ant-upload-hint">
-          Support for a single or bulk upload. Strictly prohibited from uploading company data or other
-          banned files.
-        </p>
-      </Dragger>
+      <Card title="命令行使用示例" className={styles.cmdCard} style={{ marginTop: 16 }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <div>
+            <Text strong><CloudUploadOutlined /> 上传文件：</Text>
+            <CodePreview>
+              {`curl -F "f1=@/path/to/file" -H "UploadToken: ${uploadToken || '<your_token>'}" ${apiUrl}upload`}
+            </CodePreview>
+          </div>
+          <div>
+            <Text strong><DownloadOutlined /> 下载文件：</Text>
+            <CodePreview>
+              {`wget ${apiUrl}download?filename=example.txt`}
+            </CodePreview>
+          </div>
+        </Space>
+      </Card>
     </PageContainer>
   );
 };

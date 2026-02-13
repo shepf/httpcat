@@ -6,6 +6,7 @@ export default {
   'menu.admin.sub-page': '上传token管理',
   'menu.admin.sysinfo-page': '系统信息',
   'menu.file_manage': '文件管理',
+  'menu.file_manage.file-list-page': '文件列表',
   'menu.file_manage.image-manage-page': '图片管理',
   'menu.login': '登录',
   'menu.register': '注册',

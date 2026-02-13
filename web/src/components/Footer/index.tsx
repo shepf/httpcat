@@ -63,7 +63,7 @@ const Footer: React.FC = () => {
         {
           key: 'github',
           title: <GithubOutlined />,
-          href: 'https://github.com/shepf/httpcat-release/releases',
+          href: 'https://github.com/shepf/httpcat/releases',
           blankTarget: true,
         },
         // {

@@ -1,315 +1,242 @@
-import { DeleteOutlined, DownloadOutlined, EyeOutlined, FrownTwoTone, StopOutlined, WarningFilled } from '@ant-design/icons';
-import { List, Card, Pagination, Button, Space, message, Modal } from 'antd';
-import axios from 'axios';
+import {
+  ClearOutlined,
+  CopyOutlined,
+  DeleteOutlined,
+  DownloadOutlined,
+  EyeOutlined,
+  LinkOutlined,
+  ReloadOutlined,
+  StopOutlined,
+} from '@ant-design/icons';
+import { List, Card, Pagination, Button, Space, message, Modal, Image } from 'antd';
 import { useEffect, useState } from 'react';
+import { listThumbImages, downloadImage, deleteImage, clearImages } from '@/services/ant-design-pro/api';
 import CustomImageUpload from '../components/ImageUploader';
+import styles from './index.less';
 
 const ImageList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
   const [page, setPage] = useState(1);
-  const pageSize = 10; // 每页显示的图片数量
+  const pageSize = 10;
   const [totalRecords, setTotalRecords] = useState(0);
-
-
-  const currentUrl = window.location.href;
-  const currentIpAndPort = currentUrl.split('/')[2]; // 获取当前页面的 IP 和端口部分
-
-
-
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewImage, setPreviewImage] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
-
     try {
-      let token = localStorage.getItem('token');
-      if (null === token) {
-          token = '';
-      }
+      const response = await listThumbImages({ page, pageSize });
+      const thumbnails = response.data || [];
 
-      const response = await axios.get('/api/v1/imageManage/listThumbImages', {
-        params: {
-          page: page,
-          pageSize: pageSize,
-        },
-        headers: {
-          Authorization: `Bearer ${token}`,  // 替换为您的 Bearer Token
-        },
-      });
-
-      console.log("listThumbImages  response data: ", response.data)
-
-      const responseData = response.data;
- 
-
-      // 获取图片数据
-      const thumbnails = responseData.data;
-
-
-
-
-		  //前端只通过 Base64 字符串无法确定图片的格式。Base64 只是一种表示图像数据的编码方式，并不能直接指示图像的格式。
-		  //在前端展示 Base64 图片时，通常需要提供图像的 MIME 类型来指示图像的格式。MIME 类型是一种标识数据类型的字符串，例如 "image/jpeg" 表示 JPEG 图像，"image/png" 表示 PNG 图像。
-		  // 将图像的 MIME 类型一并返回，这样前端就能够根据提供的 MIME 类型来正确解析和显示图像
-
-      //根据文件名组装图像的 MIME 类型
-      const updatedData = thumbnails.map((item: any) => {
-        const fileExtension = item.FileName.split('.').pop().toLowerCase();
-        let imageFormat = "image/jpeg"; // 默认格式为 JPEG
-        if (fileExtension === "png") {
-          imageFormat = "image/png";
-        } else if (fileExtension === "gif") {
-          imageFormat = "image/gif";
-        }
-        
-        //拼接下载图片URL
-        const downloadUrl = `http://${currentIpAndPort}/api/v1/imageManage/download?filename=${item.FileName}`;
-
-
+      const updatedData = thumbnails.map((item: API.ImageItem) => {
+        const ext = item.FileName.split('.').pop()?.toLowerCase();
+        const formatMap: Record<string, string> = {
+          png: 'image/png',
+          gif: 'image/gif',
+          webp: 'image/webp',
+          svg: 'image/svg+xml',
+        };
         return {
           ...item,
-          ImageFormat: imageFormat,
-          ImageUrl: downloadUrl,
+          ImageFormat: formatMap[ext || ''] || 'image/jpeg',
         };
       });
 
-
       setData(updatedData);
-      setLoading(false);
-
-    // 获取分页信息
-      const pagination = responseData.pagination;
-      console.log("获取分页信息 pagination: ",pagination)
-
-      setPage(pagination.page);
-      setTotalRecords(pagination.totalItems);
-
+      const pagination = response.pagination;
+      if (pagination) {
+        setPage(pagination.page);
+        setTotalRecords(pagination.totalItems);
+      }
     } catch (error) {
-      console.error('Error fetching thumbnails:', error);
+      message.error('获取图片列表失败');
+    } finally {
       setLoading(false);
     }
   };
-
 
   useEffect(() => {
     fetchData();
   }, [page]);
 
-
-  const handlePageChange = (pageNumber: number) => {
-    setPage(pageNumber);
+  const handlePreview = (base64: string, format: string) => {
+    setPreviewImage(`data:${format};base64,${base64}`);
+    setPreviewVisible(true);
   };
 
-
-  const handlePreview = (imageUrl: string) => {
-    // 在这里处理预览图片的逻辑，例如弹出模态框显示大图
-    console.log('Preview:', imageUrl);
-  };
-
-  const handleDownload = (imageUrl: string, FileName: string) => {
-    let token = localStorage.getItem('token');
-    if (null === token) {
-        token = '';
+  const handleDownload = async (fileName: string) => {
+    try {
+      const blob = await downloadImage(fileName);
+      const url = URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      message.error('下载失败');
     }
-
-    
-    axios({
-      url: imageUrl,
-      method: 'GET',
-      responseType: 'blob', // 设置响应类型为 blob
-      headers: {
-        Authorization: `Bearer ${token}`,  // 替换为您的 Bearer Token
-      },
-    })
-      .then((response) => {
-        const url = URL.createObjectURL(new Blob([response.data]));
-  
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = FileName; // 使用传入的文件名参数设置下载的文件名
-        link.click();
-  
-        URL.revokeObjectURL(url);
-      })
-      .catch((error) => {
-        console.error('Error downloading file:', error);
-      });
   };
 
-  const handleDelete = (FileName: string) => {
-    // 获取认证 token
-    let token = localStorage.getItem('token');
-    if (null === token) {
-      token = '';
+  const handleDelete = async (fileName: string) => {
+    try {
+      await deleteImage(fileName);
+      message.success('图片删除成功');
+      setData((prev) => prev.filter((item) => item.FileName !== fileName));
+    } catch (error) {
+      message.error('图片删除失败');
     }
-  
-    // 发送请求给后端删除图片
-    axios.delete(`/api/v1/imageManage/delete?filename=${FileName}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((response) => {
-        console.log('图片删除成功');
-        // 在这里可以执行其他操作或刷新页面等
-        message.success('图片删除成功');
-        // 更新数据，将已删除的图片从列表中移除
-        setData(prevData => prevData.filter(item => item.FileName !== FileName));
-   
-      })
-      .catch((error) => {
-        console.error('图片删除失败:', error);
-        // 在这里可以给出错误提示或执行其他错误处理逻辑
-        message.error('图片删除失败');
-          // 更新数据，将已删除的图片从列表中移除
-          setData(prevData => prevData.filter(item => item.FileName !== FileName));
-      });
+  };
+
+  const handleCopyImage = async (fileName: string) => {
+    try {
+      const blob = await downloadImage(fileName);
+      const ext = fileName.split('.').pop()?.toLowerCase();
+      // Clipboard API 只支持 image/png，其他格式需要转换
+      let pngBlob: Blob;
+      if (ext === 'png') {
+        pngBlob = new Blob([blob], { type: 'image/png' });
+      } else {
+        // 通过 canvas 转换为 PNG
+        const img = new window.Image();
+        const url = URL.createObjectURL(new Blob([blob]));
+        pngBlob = await new Promise<Blob>((resolve, reject) => {
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0);
+            canvas.toBlob((b) => {
+              URL.revokeObjectURL(url);
+              b ? resolve(b) : reject(new Error('转换失败'));
+            }, 'image/png');
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('图片加载失败'));
+          };
+          img.src = url;
+        });
+      }
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': pngBlob }),
+      ]);
+      message.success('图片已复制到剪贴板');
+    } catch (error) {
+      message.error('复制失败，请检查浏览器权限');
+    }
+  };
+
+  const handleCopyLink = (fileName: string) => {
+    const link = `${window.location.origin}/api/v1/imageManage/download?filename=${encodeURIComponent(fileName)}`;
+    navigator.clipboard.writeText(link).then(
+      () => message.success('图片链接已复制'),
+      () => message.error('复制链接失败'),
+    );
   };
 
   const handleClearAll = () => {
-    // 在这里处理删除图片的逻辑，例如发送请求给后端删除图片
-    console.log('handleClearAll:');
     Modal.confirm({
       title: '确认清空照片',
-      content: '您确定要清空所有照片吗？',
-      onOk() {
-          // 在这里执行清空照片的操作
-          console.log('清空照片');
-          // 获取认证 token
-          let token = localStorage.getItem('token');
-          if (null === token) {
-            token = '';
-          }
-
-          // 构建清空照片的请求 URL
-          const clearUrl = '/api/v1/imageManage/clear';
-
-          // 发送请求给后端清空照片
-          axios.delete(clearUrl, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          })
-          .then((response) => {
-            console.log('照片清空成功');
-            // 在这里可以执行其他操作或刷新页面等
-            message.success('照片清空成功');
-            // 清空数据，将列表中的所有图片移除
-            setData([]);
-          })
-          .catch((error) => {
-            console.error('照片清空失败:', error);
-            // 在这里可以给出错误提示或执行其他错误处理逻辑
-            message.error('照片清空失败');
-          });
-
-
+      content: '您确定要清空所有照片吗？此操作不可撤销。',
+      okText: '确认清空',
+      okType: 'danger',
+      cancelText: '取消',
+      async onOk() {
+        try {
+          await clearImages();
+          message.success('照片清空成功');
+          setData([]);
+          setTotalRecords(0);
+        } catch (error) {
+          message.error('照片清空失败');
+        }
       },
     });
-
-
   };
-
-  const handleRefresh = () => {
-    fetchData(); // 执行刷新数据的逻辑
-  };
-
 
   return (
-    <div>
-
+    <div className={styles.container}>
       <List
         header={
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <Button type="primary" danger onClick={handleClearAll}>
+          <div className={styles.header}>
+            <Button type="primary" danger icon={<ClearOutlined />} onClick={handleClearAll}>
               清空照片
             </Button>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <CustomImageUpload onUploadSuccess={handleRefresh} />
-              <Button onClick={handleRefresh}>刷新</Button>
-            </div>
+            <Space>
+              <CustomImageUpload onUploadSuccess={fetchData} />
+              <Button icon={<ReloadOutlined />} onClick={fetchData}>
+                刷新
+              </Button>
+            </Space>
           </div>
-          
-          
         }
         grid={{ gutter: 16, column: 5 }}
         dataSource={data}
         loading={loading}
+        locale={{ emptyText: '暂无图片' }}
         renderItem={(item: any) => (
           <List.Item>
-            <Card 
-              className="custom-card" 
-              bodyStyle={{ display: 'none' }}  // 这个就是控制card内容区域样式的，需要内容展示的话，注意注释掉
-              title={item.FileName}
-              hoverable   //鼠标移过时可浮起
+            <Card
+              className={styles.imageCard}
+              bodyStyle={{ display: 'none' }}
+              title={<span className={styles.cardTitle}>{item.FileName}</span>}
+              hoverable
               cover={
                 item.ThumbnailBase64 ? (
-                  <div className="image-wrapper">
-                      <img alt="Example Image"  className="custom-image" src={`data:${item.ImageFormat};base64,${item.ThumbnailBase64}`} />
+                  <div className={styles.imageWrapper}>
+                    <img
+                      alt={item.FileName}
+                      className={styles.image}
+                      src={`data:${item.ImageFormat};base64,${item.ThumbnailBase64}`}
+                    />
                   </div>
                 ) : (
-                  <div className="no-thumbnail">
-                    <div  className="custom-image">
-                      <StopOutlined className="stop-icon" />
-                    </div>
+                  <div className={styles.noThumbnail}>
+                    <StopOutlined className={styles.stopIcon} />
                   </div>
                 )
               }
               actions={[
-                <DownloadOutlined key="download" className="icon" onClick={() => handleDownload(item.ImageUrl, item.FileName)} />,
-                <DeleteOutlined key="delete" className="icon" onClick={() => handleDelete(item.FileName)} />
-              ]}
-            >
-              {/* {<Card.Meta title="" description={item.FileName} /> } */}
-            </Card>
+                item.ThumbnailBase64 ? (
+                  <EyeOutlined
+                    key="preview"
+                    onClick={() => handlePreview(item.ThumbnailBase64, item.ImageFormat)}
+                  />
+                ) : null,
+                <CopyOutlined key="copy" onClick={() => handleCopyImage(item.FileName)} />,
+                <LinkOutlined key="link" onClick={() => handleCopyLink(item.FileName)} />,
+                <DownloadOutlined key="download" onClick={() => handleDownload(item.FileName)} />,
+                <DeleteOutlined key="delete" onClick={() => handleDelete(item.FileName)} />,
+              ].filter(Boolean)}
+            />
           </List.Item>
         )}
       />
-      <div style={{ marginTop: '16px' }}> {/* 调整分页组件的上边距 */}
-        <Pagination current={page} pageSize={pageSize} total={totalRecords} onChange={handlePageChange} />
-      </div>
-      <style>
-        {`
-          .custom-card {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-          }
-          // .custom-card {
-          //   height: 100%; /* 设置卡片的高度为图片的高度 */
-          // }
 
-          .image-wrapper {
-            height: 100%; /* 设置图片容器的高度为卡片的高度 */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .custom-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover; /* 图片按比例缩放，填充整个容器 */
-          }
+      {totalRecords > 0 && (
+        <div className={styles.pagination}>
+          <Pagination
+            current={page}
+            pageSize={pageSize}
+            total={totalRecords}
+            onChange={setPage}
+            showTotal={(total) => `共 ${total} 张图片`}
+          />
+        </div>
+      )}
 
-          .no-thumbnail {
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%; /* 或设置固定宽度，例如 width: 200px; */
-          }
-
-          .stop-icon {
-            font-size: 8vw; /* 使用相对单位 vw 设置图标的大小 */
-            transform: scale(1); /* 默认大小 */
-            transition: transform 0.3s ease-in-out; /* 添加过渡效果 */
-          }
-          .no-thumbnail:hover .stop-icon {
-            transform: scale(1.2); /* 鼠标悬停时放大图标 */
-          }
-
-        `}
-      </style>
+      <Modal
+        open={previewVisible}
+        footer={null}
+        onCancel={() => setPreviewVisible(false)}
+        width={800}
+        centered
+      >
+        <img alt="预览" style={{ width: '100%' }} src={previewImage} />
+      </Modal>
     </div>
   );
 };
