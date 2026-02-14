@@ -452,9 +452,12 @@ func listFiles(c *gin.Context) {
 		return files[j].ModTime().Before(files[i].ModTime())
 	})
 
-	// 构建返回结果
+	// 构建返回结果（只返回文件，过滤掉目录）
 	var fileList []map[string]interface{}
 	for _, fileInfo := range files {
+		if fileInfo.IsDir() {
+			continue
+		}
 		fileEntry := make(map[string]interface{})
 		fileEntry["FileName"] = fileInfo.Name()
 		fileEntry["LastModified"] = fileInfo.ModTime().Format("2006-01-02 15:04:05")

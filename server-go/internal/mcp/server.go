@@ -389,26 +389,50 @@ func handleListFiles(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read directory: %v", err)), nil
 	}
 
-	// 按时间倒序排序
 	type fileInfo struct {
 		Name         string `json:"name"`
 		Size         string `json:"size"`
+		SizeBytes    int64  `json:"size_bytes"`
 		LastModified string `json:"last_modified"`
-		IsDir        bool   `json:"is_dir"`
 	}
 
-	var fileList []fileInfo
+	// 收集文件信息（过滤掉目录）并按时间倒序排序
+	type sortableFile struct {
+		info    fileInfo
+		modTime time.Time
+	}
+	var sortableFiles []sortableFile
 	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
 		info, err := file.Info()
 		if err != nil {
 			continue
 		}
-		fileList = append(fileList, fileInfo{
-			Name:         file.Name(),
-			Size:         utils.FormatSize(info.Size()),
-			LastModified: info.ModTime().Format("2006-01-02 15:04:05"),
-			IsDir:        file.IsDir(),
+		sortableFiles = append(sortableFiles, sortableFile{
+			info: fileInfo{
+				Name:         file.Name(),
+				Size:         utils.FormatSize(info.Size()),
+				SizeBytes:    info.Size(),
+				LastModified: info.ModTime().Format("2006-01-02 15:04:05"),
+			},
+			modTime: info.ModTime(),
 		})
+	}
+
+	// 按修改时间倒序排序
+	for i := 0; i < len(sortableFiles); i++ {
+		for j := i + 1; j < len(sortableFiles); j++ {
+			if sortableFiles[j].modTime.After(sortableFiles[i].modTime) {
+				sortableFiles[i], sortableFiles[j] = sortableFiles[j], sortableFiles[i]
+			}
+		}
+	}
+
+	var fileList []fileInfo
+	for _, sf := range sortableFiles {
+		fileList = append(fileList, sf.info)
 	}
 
 	// 限制返回数量
