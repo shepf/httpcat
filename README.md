@@ -20,48 +20,64 @@ HttpCat 是一个基于 HTTP 的文件传输服务，旨在提供简单、高效
 
 ```
 httpcat/
-├── server-go/              # 🔧 Go 后端
-│   ├── cmd/                # 应用入口
-│   │   └── httpcat.go
-│   ├── internal/           # 内部包
-│   │   ├── common/         # 公共工具
-│   │   ├── handler/        # HTTP 处理器
-│   │   ├── mcp/            # MCP 服务实现
-│   │   ├── midware/        # 中间件（认证、指标）
-│   │   ├── models/         # 数据模型
-│   │   ├── p2p/            # P2P 功能
-│   │   ├── server/         # 服务器核心
-│   │   ├── storage/        # 存储层
-│   │   └── conf/           # 配置文件
+├── server-go/                  # 🔧 Go 后端
+│   ├── cmd/
+│   │   └── httpcat.go          # 应用入口
+│   ├── internal/
+│   │   ├── common/             # 公共常量、工具函数、初始化
+│   │   ├── conf/               # 配置文件（svr.yml）
+│   │   ├── handler/            # HTTP 处理器（v1 版本）
+│   │   ├── mcp/                # MCP Server 实现（SSE 传输）
+│   │   ├── midware/            # 中间件（JWT/AK-SK 认证、指标采集）
+│   │   ├── models/             # 数据模型
+│   │   ├── p2p/                # P2P 文件传输（mDNS + PubSub）
+│   │   ├── server/             # 路由注册、核心业务逻辑
+│   │   └── storage/            # SQLite 存储层
 │   ├── go.mod
 │   └── go.sum
 │
-├── web/                    # 🎨 React 前端
-│   ├── src/                # 源代码
-│   ├── config/             # UmiJS 配置
-│   ├── mock/               # Mock 数据（仅开发环境）
+├── web/                        # 🎨 React 前端（Ant Design Pro + UmiJS）
+│   ├── src/
+│   │   ├── components/         # 通用组件（Footer、Header 等）
+│   │   ├── pages/              # 页面
+│   │   │   ├── Welcome.tsx     # 首页（快捷上传）
+│   │   │   ├── FileManage/     # 文件管理（列表、图片管理）
+│   │   │   ├── sysInfo/        # 系统信息
+│   │   │   ├── uploadTokenManage/  # Token 管理
+│   │   │   └── user/           # 登录页
+│   │   ├── services/           # API 接口定义
+│   │   └── locales/            # 国际化（中文/英文）
+│   ├── config/                 # UmiJS 路由与构建配置
+│   ├── mock/                   # Mock 数据（仅开发环境）
 │   └── package.json
 │
-├── scripts/                # 🛠️ 脚本目录
-│   ├── build.sh            # 多平台构建脚本
-│   ├── install.sh          # Linux/macOS 安装脚本
-│   ├── uninstall.sh        # 卸载脚本
-│   └── translations.sh     # i18n 翻译脚本
+├── scripts/                    # 🛠️ 运维脚本
+│   ├── build.sh                # 多平台交叉编译（支持 Docker 构建）
+│   ├── install.sh              # Linux/macOS 一键安装
+│   ├── uninstall.sh            # 卸载脚本
+│   ├── httpcat-api.sh          # AK/SK 签名调用示例
+│   ├── search-and-upload-image.sh  # 图片搜索上传脚本
+│   └── translations.sh         # i18n 翻译脚本
 │
-├── docs/                   # 📚 文档目录
-│   ├── README-en.md        # English README
-│   ├── BUILD.md            # 编译构建指南
-│   ├── INSTALL.md          # 安装部署指南
-│   ├── ReleaseNote.md      # 版本发布记录
-│   ├── MCP_USAGE.md        # MCP 集成指南
-│   └── ...                 # 其他设计文档
+├── docs/                       # 📚 文档
+│   ├── README-en.md            # English README
+│   ├── BUILD.md                # 编译构建指南
+│   ├── INSTALL.md              # 安装部署指南
+│   ├── MCP_USAGE.md            # MCP 集成指南
+│   ├── ReleaseNote.md          # 版本发布记录
+│   └── ...                     # 其他设计文档
 │
-├── static/                 # 📦 前端构建产物
-├── release/                # 📤 构建输出目录（已忽略）
+├── static/                     # 📦 前端构建产物（不纳入 git，由 npm run build 生成）
+├── release/                    # 📤 构建输出（发行包）
+├── website/                    # 📂 运行时数据目录
+│   ├── upload/                 # 上传文件存储
+│   └── download/               # 下载文件存储
+├── data/                       # 💾 SQLite 数据库目录
 │
-├── Dockerfile              # Docker 配置
-├── docker-compose.yml      # Docker Compose 配置
-└── httpcat.service         # systemd 服务文件
+├── Dockerfile                  # Docker 镜像配置
+├── docker-compose.yml          # Docker Compose 编排
+├── httpcat.service             # systemd 服务文件
+└── LANGUAGES                   # 支持的语言列表
 ```
 
 ## 🚀 快速开始

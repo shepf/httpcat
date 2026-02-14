@@ -237,10 +237,16 @@ export async function uploadFile(formData: FormData, uploadToken: string, onProg
   });
 }
 
-/** 获取上传Token列表（用于 Welcome 页面获取可用 token） */
+/** 获取第一个可用的上传Token（用于 Welcome 页面快捷上传） */
 export async function getFirstUploadToken(): Promise<string> {
   const result = await uploadTokenLists({});
   const tokens = result?.data || [];
-  const activeToken = tokens.find((t) => t.state === 'open' && t.uploadToken);
-  return activeToken?.uploadToken || '';
+  const activeToken = tokens.find((t) => t.state === 'open' && t.appkey && t.appsecret);
+  if (!activeToken) return '';
+  // 用 appkey + appsecret 生成实际的 UploadToken
+  const tokenResult = await createUploadToken({
+    appkey: activeToken.appkey,
+    appsecret: activeToken.appsecret,
+  });
+  return tokenResult?.data || '';
 }

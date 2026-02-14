@@ -8,8 +8,8 @@ import {
 import { ProCard, ProDescriptions, Statistic, StatisticCard } from '@ant-design/pro-components';
 import { useEffect, useState } from 'react';
 import { Pie } from '@ant-design/plots';
-import { CheckCircleTwoTone, CloseCircleTwoTone } from '@ant-design/icons';
-import { Space, Spin } from 'antd';
+import { CheckCircleTwoTone, CloseCircleTwoTone, EyeOutlined, EyeInvisibleOutlined, WarningOutlined } from '@ant-design/icons';
+import { Space, Spin, Tag, Tooltip } from 'antd';
 
 export default () => {
   const [loading, setLoading] = useState(true);
@@ -19,6 +19,7 @@ export default () => {
   const [downloadStats, setDownloadStats] = useState<API.DownloadStatistics>({});
   const [usedSpace, setUsedSpace] = useState(0);
   const [freeSpace, setFreeSpace] = useState(0);
+  const [showWorkDir, setShowWorkDir] = useState(false);
 
   // 合并所有数据加载到单个 useEffect
   useEffect(() => {
@@ -99,20 +100,20 @@ export default () => {
         headerBordered
       >
         <ProDescriptions
-          title="httpcat system info"
+          title="HttpCat 系统信息"
           dataSource={{
             version: versionData.version,
             httpcat_uptime: versionData.uptime,
             work_dir: confData.workDir,
-            upload_path: confData.absUploadDir || confData.uploadDir,
-            download_path: confData.absDownloadDir || confData.downloadDir,
-            web_path: confData.absWebDir || confData.webDir,
+            upload_path: confData.uploadDir,
+            download_path: confData.downloadDir,
+            web_path: confData.webDir,
             fileUploadEnable: confData.fileUploadEnable,
           }}
           emptyText="空"
           columns={[
             {
-              title: 'httpcat版本',
+              title: '版本号',
               key: 'version',
               dataIndex: 'version',
             },
@@ -132,21 +133,43 @@ export default () => {
               ),
             },
             {
-              title: 'httpcat持续运行时间',
+              title: '持续运行时间',
               key: 'httpcat_uptime',
               dataIndex: 'httpcat_uptime',
             },
             {
-              title: '项目工作目录',
+              title: (
+                <Space>
+                  项目工作目录
+                  {showWorkDir ? (
+                    <EyeOutlined style={{ cursor: 'pointer', color: '#1890ff' }} onClick={() => setShowWorkDir(false)} />
+                  ) : (
+                    <EyeInvisibleOutlined style={{ cursor: 'pointer', color: '#999' }} onClick={() => setShowWorkDir(true)} />
+                  )}
+                </Space>
+              ),
               key: 'work_dir',
               dataIndex: 'work_dir',
-              copyable: true,
+              render: (_text, record) => (
+                showWorkDir ? <span>{record.work_dir}</span> : <span style={{ color: '#999' }}>••••••</span>
+              ),
+              copyable: showWorkDir,
             },
             {
               title: '上传文件路径',
               key: 'upload_path',
               dataIndex: 'upload_path',
               copyable: true,
+              render: (_text, record) => (
+                <Space>
+                  <span>{record.upload_path}</span>
+                  {record.upload_path !== record.download_path && (
+                    <Tooltip title="上传与下载路径不一致，文件列表仅展示下载目录的文件">
+                      <Tag icon={<WarningOutlined />} color="warning">路径不一致</Tag>
+                    </Tooltip>
+                  )}
+                </Space>
+              ),
             },
             {
               title: '下载文件路径',

@@ -75,17 +75,9 @@ web/.eslintcache
 web/.stylelintcache
 
 # ============ Static Assets ============
-# Frontend build output (copied from web/dist/)
-# Keep directory structure, ignore generated files
-static/assets/
-static/umi.*.js
-static/umi.*.css
-static/*.js
-static/*.css
-static/*.map
-static/*.chunk.*
-!static/index.html
-!static/favicon.ico
+# Frontend build output (copied from web/dist/ by build script)
+# Entire directory is generated, do not track
+static/
 
 # ============ Database Files ============
 *.db
