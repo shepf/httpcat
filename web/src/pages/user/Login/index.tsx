@@ -124,7 +124,9 @@ const Login: React.FC = () => {
           </div>
         </LoginForm>
       </div>
-      <Footer />
+      <div className={styles.footer}>
+        <Footer />
+      </div>
     </div>
   );
 };

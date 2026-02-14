@@ -23,7 +23,7 @@ RELEASE_DIR="$PROJECT_ROOT/release"
 SCRIPTS_DIR="$PROJECT_ROOT/scripts"
 
 # ============ 版本信息 ============
-HTTPCAT_VERSION="${HTTPCAT_VERSION:-v0.2.1}"
+HTTPCAT_VERSION="${HTTPCAT_VERSION:-v0.2.2}"
 HTTPCAT_BUILD=$(date "+%Y%m%d%H%M")
 COMMIT_ID=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
