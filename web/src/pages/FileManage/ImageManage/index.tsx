@@ -7,12 +7,19 @@ import {
   LinkOutlined,
   ReloadOutlined,
   StopOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
-import { List, Card, Pagination, Button, Space, message, Modal, Image } from 'antd';
-import { useEffect, useState } from 'react';
+import { List, Card, Pagination, Button, Space, message, Modal, Select, Tooltip } from 'antd';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { listThumbImages, downloadImage, deleteImage, clearImages } from '@/services/ant-design-pro/api';
 import CustomImageUpload from '../components/ImageUploader';
 import styles from './index.less';
+
+const AUTO_REFRESH_OPTIONS = [
+  { label: '10秒', value: 10 },
+  { label: '30秒', value: 30 },
+  { label: '60秒', value: 60 },
+];
 
 const ImageList: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -23,7 +30,13 @@ const ImageList: React.FC = () => {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
 
-  const fetchData = async () => {
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState(30);
+  const [countdown, setCountdown] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const response = await listThumbImages({ page, pageSize });
@@ -54,11 +67,46 @@ const ImageList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize]);
 
   useEffect(() => {
     fetchData();
   }, [page]);
+
+  // 自动刷新逻辑
+  useEffect(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+
+    if (autoRefresh) {
+      setCountdown(refreshInterval);
+
+      countdownRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) return refreshInterval;
+          return prev - 1;
+        });
+      }, 1000);
+
+      timerRef.current = setInterval(() => {
+        fetchData();
+        setCountdown(refreshInterval);
+      }, refreshInterval * 1000);
+    } else {
+      setCountdown(0);
+    }
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, [autoRefresh, refreshInterval, fetchData]);
 
   const handlePreview = (base64: string, format: string) => {
     setPreviewImage(`data:${format};base64,${base64}`);
@@ -167,6 +215,24 @@ const ImageList: React.FC = () => {
             </Button>
             <Space>
               <CustomImageUpload onUploadSuccess={fetchData} />
+              <div className={styles.autoRefreshGroup}>
+                <Tooltip title={autoRefresh ? `${countdown}秒后自动刷新` : '开启自动刷新'}>
+                  <Button
+                    type={autoRefresh ? 'primary' : 'default'}
+                    icon={<SyncOutlined spin={autoRefresh} />}
+                    onClick={() => setAutoRefresh(!autoRefresh)}
+                  >
+                    {autoRefresh ? `自动刷新 ${countdown}s` : '自动刷新'}
+                  </Button>
+                </Tooltip>
+                <Select
+                  value={refreshInterval}
+                  onChange={(val) => setRefreshInterval(val)}
+                  options={AUTO_REFRESH_OPTIONS}
+                  size="middle"
+                  className={styles.intervalSelect}
+                />
+              </div>
               <Button icon={<ReloadOutlined />} onClick={fetchData}>
                 刷新
               </Button>
