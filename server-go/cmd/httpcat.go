@@ -24,6 +24,7 @@ func main() {
 	fmt.Printf("CI: %s\n", common.CI)
 
 	go server.RunAPIServer(common.HttpPort, common.HttpSSLEnable, common.HttpAuthEnable, common.SSLCertFile, common.SSLKeyFile)
+	go debug()
 
 	<-common.Sig
 }

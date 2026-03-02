@@ -2,23 +2,22 @@ package v1
 
 import (
 	"fmt"
-	"httpcat/internal/common"
-	"github.com/gin-gonic/gin"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 	"math"
 	"net/http"
 	"time"
+
+	"httpcat/internal/common"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func GetUploadStatistics(c *gin.Context) {
-	dbPath := common.SqliteDBPath
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := common.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	db.Debug()
 
 	// 统计信息
 	todayUploadCount := getTodayUploadCount(db)
@@ -105,13 +104,11 @@ func formatPercentage(percentage float64) string {
 
 // Path: server\handler\v1\statistics.go
 func GetDownloadStatistics(c *gin.Context) {
-	dbPath := common.SqliteDBPath
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := common.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	db.Debug()
 
 	// 统计信息
 	todayDownloadCount := getTodayDownloadCount(db)

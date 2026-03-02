@@ -2,16 +2,16 @@ package common
 
 import (
 	"crypto/sha1"
-	"encoding/json"
 	"fmt"
-	"httpcat/internal/common/ylog"
-	"httpcat/internal/models"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 	"io"
 	"log"
 	"sync"
 	"time"
+
+	"httpcat/internal/common/ylog"
+	"httpcat/internal/models"
+
+	"gorm.io/gorm"
 )
 
 type User struct {
@@ -115,14 +115,6 @@ func InitUploadToken() {
 	go func() {
 		for {
 			time.Sleep(5 * time.Second)
-			// 方便定义问题，打印 UploadTokenTable
-			jsonBytes, err := json.MarshalIndent(UploadTokenTable, "", "  ")
-			if err != nil {
-				log.Printf("无法序列化 UploadTokenTable: %v\n", err)
-				return
-			}
-			log.Printf("UploadTokenTable: %s\n", string(jsonBytes))
-
 			table := loadUploadTokenFromDB()
 			if table != nil {
 				UploadTokenLock.Lock()
@@ -136,11 +128,8 @@ func InitUploadToken() {
 func loadUploadTokenFromDB() map[string]*UploadTokenItem {
 	ylog.Infof("loadUploadTokenFromDB", "loadUploadTokenFromDB")
 
-	// 连接数据库
-	dbPath := SqliteDBPath
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := GetDB()
 	if err != nil {
-		// 处理数据库连接错误
 		log.Printf("加载上传token表数据失败：%v", err)
 		return nil
 	}
@@ -166,23 +155,22 @@ func loadUploadTokenFromDB() map[string]*UploadTokenItem {
 func loadUserFromDB() map[string]*User {
 	if EnableSqlite {
 		ylog.Infof("loadUserFromDB", "loadUserFromDB")
-		// 读取 SQLite 数据库文件路径配置项
-		dbPath := SqliteDBPath
 
-		// 打开 SQLite 数据库连接
-		db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+		db, err := GetDB()
 		if err != nil {
-			ylog.Errorf("initDB", "open db failed, err:%v", err)
+			ylog.Errorf("loadUserFromDB", "get db failed, err:%v", err)
+			return nil
 		}
 
 		var users []User
 		if err := db.Find(&users).Error; err != nil {
-			log.Fatalf("loadUserFromDB: %v", err)
+			ylog.Errorf("loadUserFromDB", "query users failed: %v", err)
 			return nil
 		}
 		userTable := make(map[string]*User)
 		for _, user := range users {
-			userTable[user.Username] = &user
+			u := user
+			userTable[u.Username] = &u
 		}
 
 		return userTable

@@ -127,7 +127,7 @@ Access the application:
 
 ```bash
 # Download and extract
-httpcat_version="v0.2.2"
+httpcat_version="v0.2.3"
 tar -zxvf httpcat_${httpcat_version}_linux-amd64.tar.gz
 cd httpcat_${httpcat_version}_linux-amd64
 

@@ -3,7 +3,6 @@ package v1
 import (
 	"encoding/base64"
 	"fmt"
-	"strings"
 	"io"
 	"io/ioutil"
 	"math"
@@ -11,20 +10,19 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"httpcat/internal/common"
-	"httpcat/internal/midware"
-	"httpcat/internal/storage/auth"
 	"httpcat/internal/common/utils"
 	"httpcat/internal/common/ylog"
+	"httpcat/internal/midware"
 	"httpcat/internal/models"
+	"httpcat/internal/storage/auth"
 
 	"github.com/disintegration/imaging"
 	"github.com/gin-gonic/gin"
-	"github.com/satori/go.uuid"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	uuid "github.com/satori/go.uuid"
 )
 
 func UploadImage(c *gin.Context) {
@@ -162,13 +160,11 @@ func UploadImage(c *gin.Context) {
 	if common.EnableSqlite {
 		ylog.Infof("uploadFile", "sqliteInsert enable")
 
-		dbPath := common.SqliteDBPath
-		db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+		db, err := common.GetDB()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		db.Debug()
 
 		// 保存图片信息到数据库
 		image := models.UploadImageModel{
@@ -247,8 +243,7 @@ func DeleteImage(c *gin.Context) {
 	filename := c.Query("filename")
 
 	// 从数据库中删除相应记录
-	dbPath := common.SqliteDBPath
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := common.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "数据库连接失败",
@@ -296,8 +291,7 @@ func DeleteImage(c *gin.Context) {
 func ClearImage(c *gin.Context) {
 
 	// 清空数据库中的记录
-	dbPath := common.SqliteDBPath
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := common.GetDB()
 	if err != nil {
 		ylog.Errorf("clearImage", "数据库连接失败", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -368,8 +362,7 @@ func GetThumbnails(c *gin.Context) {
 	page, _ := strconv.Atoi(pageStr)
 	pageSize, _ := strconv.Atoi(pageSizeStr)
 
-	dbPath := common.SqliteDBPath
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := common.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

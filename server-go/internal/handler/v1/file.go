@@ -3,16 +3,16 @@ package v1
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"httpcat/internal/common"
-	"httpcat/internal/common/ylog"
-	"github.com/gin-gonic/gin"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"httpcat/internal/common"
+	"httpcat/internal/common/ylog"
 )
 
 func DownloadFile(c *gin.Context) {
@@ -32,6 +32,8 @@ func DownloadFile(c *gin.Context) {
 		common.CreateResponse(c, common.FileIsNotExists, nil)
 		return
 	}
+	defer file.Close()
+
 	// 获取文件信息
 	fileInfo, _ := file.Stat()
 	fileSize := int(fileInfo.Size())
@@ -77,24 +79,15 @@ func DownloadFile(c *gin.Context) {
 }
 
 func recordDownloadLog(fileName string, ip string, fileSize int, createdTime string, modifiedTime string, fileMD5 string) {
-	dbPath := common.SqliteDBPath
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := common.GetDB()
 	if err != nil {
-		ylog.Errorf("recordDownloadLog", "打开数据库失败", err)
+		ylog.Errorf("recordDownloadLog", "获取数据库连接失败", err)
 		return
 	}
-	db.Debug()
-
-	//// 自动创建表，服务初始化的时候，已经创建了表，这里不需要再创建
-	//err = db.AutoMigrate(&common.DownloadLogModel{})
-	//if err != nil {
-	//	ylog.Errorf("recordDownloadLog", "创建表失败", err)
-	//	return
-	//}
 
 	log := common.DownloadLogModel{
 		IP:           ip,
-		AppKey:       "", // 根据实际情况设置 AppKey
+		AppKey:       "",
 		DownloadTime: time.Now().Format("2006-01-02 15:04:05"),
 		FileName:     fileName,
 		FileSize:     strconv.Itoa(fileSize),

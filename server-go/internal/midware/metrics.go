@@ -2,21 +2,23 @@ package midware
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"sync"
-	"time"
 )
 
 var apiCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Name: "elkeid_manager_http_api_qps_counter",
-	Help: "Elkeid Manager Http API QPS",
-}, []string{"handle", "source", "code"})
+	Name: "httpcat_http_api_qps_counter",
+	Help: "Httpcat Http API QPS",
+}, []string{"handle", "code"})
 
 var apiHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-	Name: "elkeid_manager_http_api_histogram",
-	Help: "Elkeid Manager Http API Histogram",
-}, []string{"handle", "source", "code"})
+	Name:    "httpcat_http_api_histogram",
+	Help:    "Httpcat Http API Histogram",
+	Buckets: prometheus.DefBuckets,
+}, []string{"handle", "code"})
 
 var initOnce = &sync.Once{}
 
@@ -28,12 +30,10 @@ func Metrics() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		begin := time.Now()
 
-		source := c.RemoteIP()
 		handle := c.HandlerName()
 		c.Next()
 		code := fmt.Sprint(c.Writer.Status())
-		apiCounter.With(prometheus.Labels{"handle": handle, "source": source, "code": code}).Add(float64(1))
-		apiHistogram.With(prometheus.Labels{"handle": handle, "source": source, "code": code}).Observe(float64(time.Since(begin)))
-		return
+		apiCounter.With(prometheus.Labels{"handle": handle, "code": code}).Inc()
+		apiHistogram.With(prometheus.Labels{"handle": handle, "code": code}).Observe(time.Since(begin).Seconds())
 	}
 }

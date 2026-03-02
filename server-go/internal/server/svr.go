@@ -7,21 +7,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"httpcat/internal/common"
-	"httpcat/internal/common/utils"
-	"httpcat/internal/common/ylog"
-	"httpcat/internal/models"
-	"httpcat/internal/p2p"
-	"httpcat/internal/storage"
-	"httpcat/internal/storage/auth"
-	"github.com/gin-gonic/gin"
-	"github.com/libp2p/go-libp2p"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/shirou/gopsutil/disk"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 	"io"
 	"io/ioutil"
 	"log"
@@ -33,6 +18,22 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"httpcat/internal/common"
+	"httpcat/internal/common/utils"
+	"httpcat/internal/common/ylog"
+	"httpcat/internal/models"
+	"httpcat/internal/p2p"
+	"httpcat/internal/storage"
+	"httpcat/internal/storage/auth"
+
+	"github.com/gin-gonic/gin"
+	"github.com/libp2p/go-libp2p"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/shirou/gopsutil/disk"
+	"gorm.io/gorm"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -394,6 +395,7 @@ func downloadFile(c *gin.Context) {
 		common.CreateResponse(c, common.FileIsNotExists, nil)
 		return
 	}
+	defer file.Close()
 
 	// 获取文件信息
 	fileInfo, _ := file.Stat()
@@ -554,13 +556,11 @@ func uploadHistoryLogs(c *gin.Context) {
 
 	// 查询数据库获取分页数据
 	var logs []models.UploadLogModel
-	dbPath := common.SqliteDBPath
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := common.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	db.Debug()
 
 	offset := (params.Current - 1) * params.PageSize
 	query := db.Table("t_upload_log").Offset(offset).Limit(params.PageSize).Order("upload_time DESC")
@@ -622,13 +622,11 @@ func deleteHistoryLogs(c *gin.Context) {
 	}
 	ylog.Infof("deleteHistoryLogs", "删除上传文件日志 ids：", ids)
 
-	dbPath := common.SqliteDBPath
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := common.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	db.Debug()
 
 	err = db.Table("t_upload_log").Where("id IN ?", ids).Delete(&models.UploadLogModel{}).Error
 	if err != nil {
@@ -696,8 +694,7 @@ func saveUploadToken(c *gin.Context) {
 	}
 
 	// 连接数据库
-	dbPath := common.SqliteDBPath
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := common.GetDB()
 	if err != nil {
 		// 处理数据库连接错误
 		common.CreateResponse(c, common.ErrorCode, err)
@@ -769,8 +766,7 @@ func removeUploadToken(c *gin.Context) {
 	}
 
 	// 连接数据库
-	dbPath := common.SqliteDBPath
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := common.GetDB()
 	if err != nil {
 		// 处理数据库连接错误
 		common.CreateResponse(c, common.ErrorCode, err)
@@ -823,8 +819,7 @@ func removeUploadToken(c *gin.Context) {
 func getUploadTokenLists(c *gin.Context) {
 	// 查询数据库获取数据
 	var logs []common.UploadTokenItem
-	dbPath := common.SqliteDBPath
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := common.GetDB()
 	if err != nil {
 		// 处理数据库连接错误
 		common.CreateResponse(c, common.ErrorCode, err)

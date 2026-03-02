@@ -4,17 +4,17 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
-	"httpcat/internal/common"
-	"httpcat/internal/common/ylog"
-	"httpcat/internal/midware"
-	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"httpcat/internal/common"
+	"httpcat/internal/common/ylog"
+	"httpcat/internal/midware"
+
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type AuthRequest struct {
@@ -96,8 +96,7 @@ func ChangePasswd(c *gin.Context) {
 
 	// 从数据库中查询用户信息
 	var user common.User
-	dbPath := common.SqliteDBPath
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := common.GetDB()
 	if err != nil {
 		// 处理数据库连接错误
 		common.CreateResponse(c, common.ErrorCode, err)
@@ -232,8 +231,7 @@ func UploadAvatar(c *gin.Context) {
 	// 将文件内容进行 Base64 编码
 	encodedString := base64.StdEncoding.EncodeToString(fileBytes)
 	// 更新用户的 Avatar 属性
-	dbPath := common.SqliteDBPath
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := common.GetDB()
 	if err != nil {
 		// 处理数据库连接错误
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
