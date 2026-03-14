@@ -56,7 +56,9 @@ func RegisterRouter(r *gin.Engine) {
 		{
 			confRouter.GET("/getVersion", v1.GetVersion)
 			confRouter.GET("/getConf", v1.GetConfInfo)
-
+			confRouter.GET("/sysConfig", v1.GetSysConfig)
+			confRouter.PUT("/sysConfig", v1.UpdateSysConfig)
+			confRouter.POST("/restart", v1.RestartServer)
 		}
 
 		//用户操作相关接口

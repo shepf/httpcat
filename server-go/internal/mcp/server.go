@@ -373,9 +373,9 @@ func handleListFiles(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 	var dirPath string
 	var err error
 	if dir == "" {
-		dirPath = common.DownloadDir
+		dirPath = common.GetDownloadDir()
 	} else {
-		dirPath, err = validateAndResolvePath(common.DownloadDir, dir)
+		dirPath, err = validateAndResolvePath(common.GetDownloadDir(), dir)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Invalid directory path: %v", err)), nil
 		}
@@ -454,7 +454,7 @@ func handleGetFileInfo(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 	}
 
 	// 使用安全的路径验证
-	filePath, err := validateAndResolvePath(common.DownloadDir, filename)
+	filePath, err := validateAndResolvePath(common.GetDownloadDir(), filename)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid filename: %v", err)), nil
 	}
@@ -601,7 +601,7 @@ func queryUploadHistory(page, pageSize int, filename, fileMD5, ip string) ([]map
 
 // handleGetDiskUsage 处理磁盘使用查询
 func handleGetDiskUsage(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	usage, err := getDiskUsage(common.UploadDir)
+	usage, err := getDiskUsage(common.GetUploadDir())
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to get disk usage: %v", err)), nil
 	}
@@ -620,7 +620,7 @@ func handleRequestDeleteFile(ctx context.Context, request mcp.CallToolRequest) (
 	}
 
 	// 使用安全的路径验证
-	filePath, err := validateAndResolvePath(common.DownloadDir, filename)
+	filePath, err := validateAndResolvePath(common.GetDownloadDir(), filename)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid filename: %v", err)), nil
 	}
@@ -679,7 +679,7 @@ func handleConfirmDeleteFile(ctx context.Context, request mcp.CallToolRequest) (
 	}
 
 	// 使用安全的路径验证
-	filePath, err := validateAndResolvePath(common.DownloadDir, filename)
+	filePath, err := validateAndResolvePath(common.GetDownloadDir(), filename)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid filename: %v", err)), nil
 	}
@@ -776,15 +776,15 @@ func handleUploadFile(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 	}
 
 	// 确保上传目录存在
-	if _, err := os.Stat(common.UploadDir); os.IsNotExist(err) {
-		err := os.MkdirAll(common.UploadDir, 0755)
+	if _, err := os.Stat(common.GetUploadDir()); os.IsNotExist(err) {
+		err := os.MkdirAll(common.GetUploadDir(), 0755)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to create upload directory: %v", err)), nil
 		}
 	}
 
 	// 构建文件路径（使用安全的路径拼接）
-	filePath := filepath.Join(common.UploadDir, filepath.Base(filename))
+	filePath := filepath.Join(common.GetUploadDir(), filepath.Base(filename))
 
 	// 写入文件
 	err = os.WriteFile(filePath, content, 0644)
@@ -909,7 +909,7 @@ func handleUploadImage(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 	}
 
 	// 确保 images 目录存在
-	imagesDir := filepath.Join(common.UploadDir, "images")
+	imagesDir := filepath.Join(common.GetUploadDir(), "images")
 	if err := os.MkdirAll(imagesDir, 0755); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to create images directory: %v", err)), nil
 	}
@@ -1012,7 +1012,7 @@ func handleGetStatistics(ctx context.Context, request mcp.CallToolRequest) (*mcp
 
 	if statsType == "all" || statsType == "upload" {
 		// 获取上传统计
-		uploadDir := common.UploadDir
+		uploadDir := common.GetUploadDir()
 		var totalSize int64
 		var fileCount int
 
@@ -1031,7 +1031,7 @@ func handleGetStatistics(ctx context.Context, request mcp.CallToolRequest) (*mcp
 	}
 
 	if statsType == "all" || statsType == "disk" {
-		usage, _ := getDiskUsage(common.UploadDir)
+		usage, _ := getDiskUsage(common.GetUploadDir())
 		stats.DiskUsage = usage
 	}
 
@@ -1054,7 +1054,7 @@ func handleVerifyFileMD5(ctx context.Context, request mcp.CallToolRequest) (*mcp
 	}
 
 	// 使用安全的路径验证
-	filePath, err := validateAndResolvePath(common.DownloadDir, filename)
+	filePath, err := validateAndResolvePath(common.GetDownloadDir(), filename)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid filename: %v", err)), nil
 	}
@@ -1090,7 +1090,7 @@ func handleVerifyFileMD5(ctx context.Context, request mcp.CallToolRequest) (*mcp
 
 // handleFileListResource 文件列表资源处理器
 func handleFileListResource(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-	dirPath := common.DownloadDir
+	dirPath := common.GetDownloadDir()
 
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -1128,7 +1128,7 @@ func handleFileListResource(ctx context.Context, request mcp.ReadResourceRequest
 
 // handleDiskUsageResource 磁盘使用资源处理器
 func handleDiskUsageResource(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-	usage, err := getDiskUsage(common.UploadDir)
+	usage, err := getDiskUsage(common.GetUploadDir())
 	if err != nil {
 		return nil, err
 	}
@@ -1156,8 +1156,8 @@ func handleSystemInfoResource(ctx context.Context, request mcp.ReadResourceReque
 
 	info := SystemInfo{
 		Version:           common.Version,
-		UploadDir:         common.UploadDir,
-		DownloadDir:       common.DownloadDir,
+		UploadDir:         common.GetUploadDir(),
+		DownloadDir:       common.GetDownloadDir(),
 		P2PEnabled:        common.P2pEnable,
 		SQLiteEnabled:     common.EnableSqlite,
 		UploadTokenEnable: common.EnableUploadToken,

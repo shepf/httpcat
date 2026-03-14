@@ -165,6 +165,30 @@ export async function getConf(options?: { [key: string]: any }) {
   });
 }
 
+/** 获取系统配置（完整） */
+export async function getSysConfig(options?: { [key: string]: any }) {
+  return request<API.MyResponse<API.SysConfig>>('/api/v1/conf/sysConfig', {
+    method: 'GET',
+    ...(options || {}),
+  });
+}
+
+/** 更新系统配置 */
+export async function updateSysConfig(data: Partial<API.SysConfig>) {
+  return request<API.MyResponse<API.SysConfigUpdateResult>>('/api/v1/conf/sysConfig', {
+    method: 'PUT',
+    data,
+  });
+}
+
+/** 重启服务（需管理员密码） */
+export async function restartServer(password: string) {
+  return request<API.MyResponse<{ message: string }>>('/api/v1/conf/restart', {
+    method: 'POST',
+    data: { password },
+  });
+}
+
 /** 获取某个文件信息 */
 export async function getFileInfo(options?: { [key: string]: any }) {
   return request<API.MyResponse<API.FileInfo>>('/api/v1/file/getFileInfo', {
@@ -186,7 +210,7 @@ export async function listFiles(params?: { dir?: string }) {
 // ==================== 图片管理（统一到 umi-request） ====================
 
 /** 获取图片缩略图列表 */
-export async function listThumbImages(params: { page: number; pageSize: number }) {
+export async function listThumbImages(params: { page: number; pageSize: number; search?: string }) {
   return request<API.ImageListResponse>('/api/v1/imageManage/listThumbImages', {
     method: 'GET',
     params,

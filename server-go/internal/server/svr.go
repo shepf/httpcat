@@ -43,6 +43,34 @@ var ps *pubsub.PubSub
 // 使用一个全局变量 subscribedTopics，它是一个映射（map），用于保存已加入的主题及其对应的 *pubsub.Topic 实例
 var subscribedTopics = make(map[string]*pubsub.Topic)
 
+// httpSrv 全局 HTTP Server 实例，用于优雅关闭
+var httpSrv *http.Server
+
+// GracefulShutdown 优雅关闭 HTTP 服务器，等待现有请求处理完毕（最多 10 秒）
+// 关闭后进程将退出，由 systemd/Docker 自动重启
+func GracefulShutdown() {
+	if httpSrv == nil {
+		ylog.Errorf("GracefulShutdown", "httpSrv is nil, 直接退出进程")
+		os.Exit(1)
+		return
+	}
+
+	ylog.Infof("GracefulShutdown", "开始优雅关闭服务器...")
+
+	// 给 10 秒时间等待现有请求处理完毕
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := httpSrv.Shutdown(ctx); err != nil {
+		ylog.Errorf("GracefulShutdown", "优雅关闭失败: %v，强制退出", err)
+	} else {
+		ylog.Infof("GracefulShutdown", "服务器已优雅关闭")
+	}
+
+	// 退出进程，由 systemd(Restart=always) / Docker(restart:unless-stopped) 自动拉起
+	os.Exit(0)
+}
+
 func RunAPIServer(port int, enableSSL, enableAuth bool, certFile, keyFile string) {
 
 	//生成一个 Engine，这是 gin 的核心，默认带有 Logger 和 Recovery 两个中间件
@@ -50,7 +78,7 @@ func RunAPIServer(port int, enableSSL, enableAuth bool, certFile, keyFile string
 	RegisterRouter(router)
 
 	// 创建http server
-	srv := &http.Server{
+	httpSrv = &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: router,
 		//ReadTimeout：服务器在读取客户端请求时，等待的最大时间。
@@ -72,12 +100,12 @@ func RunAPIServer(port int, enableSSL, enableAuth bool, certFile, keyFile string
 	ylog.Infof("RunServer", "####HTTP_LISTEN_ON:%d", port)
 	if enableSSL {
 		// 用ListenAndServeTLS替代router.RunTLS
-		err = srv.ListenAndServeTLS(certFile, keyFile)
+		err = httpSrv.ListenAndServeTLS(certFile, keyFile)
 	} else {
 		// 用srv.ListenAndServe()替代router.Run
-		err = srv.ListenAndServe()
+		err = httpSrv.ListenAndServe()
 	}
-	if err != nil {
+	if err != nil && err != http.ErrServerClosed {
 		ylog.Errorf("RunServer", "####http run error: %v", err)
 	}
 
@@ -223,8 +251,8 @@ func discoverPeers(ctx context.Context, h host.Host) {
 func getDirConf(c *gin.Context) {
 
 	dirConf := make(map[string]string)
-	dirConf["UploadDir"] = common.UploadDir
-	dirConf["DownloadDir"] = common.DownloadDir
+	dirConf["UploadDir"] = common.GetUploadDir()
+	dirConf["DownloadDir"] = common.GetDownloadDir()
 	dirConf["StaticDir"] = common.StaticDir
 
 	common.CreateResponse(c, common.SuccessCode, dirConf)
@@ -289,10 +317,10 @@ func uploadFile(c *gin.Context) {
 	filename := header.Filename
 	fmt.Println(file, err, filename)
 
-	filePath := common.UploadDir + filename
+	filePath := common.GetUploadDir() + filename
 	// 判断目录是否存在，如果不存在则创建
-	if _, err := os.Stat(common.UploadDir); os.IsNotExist(err) {
-		err := os.MkdirAll(common.UploadDir, 0755)
+	if _, err := os.Stat(common.GetUploadDir()); os.IsNotExist(err) {
+		err := os.MkdirAll(common.GetUploadDir(), 0755)
 		if err != nil {
 			ylog.Errorf("uploadFile", "创建目录失败", err)
 			panic(err)
@@ -383,7 +411,7 @@ func downloadFile(c *gin.Context) {
 	// 从请求参数获取文件名
 	fileName := c.Query("filename")
 
-	path := filepath.Join(common.DownloadDir, fileName)
+	path := filepath.Join(common.GetDownloadDir(), fileName)
 	//打印
 	ylog.Infof("downloadFile", "download file from: %s", path)
 
@@ -432,7 +460,7 @@ func listFiles(c *gin.Context) {
 	//	return
 	//}
 
-	dirPath = common.DownloadDir + dirPath
+	dirPath = common.GetDownloadDir() + dirPath
 	ylog.Infof("listFiles func:", "dirPath:%s", dirPath)
 
 	// 读取目录
@@ -482,7 +510,7 @@ func getFileInfo(c *gin.Context) {
 	}
 
 	// 检查文件路径
-	filePath := common.DownloadDir + fileName
+	filePath := common.GetDownloadDir() + fileName
 	ylog.Infof("fileInfo func:", "filePath:%s", filePath)
 
 	// 获取文件信息
@@ -884,7 +912,7 @@ func checkUploadToken(c *gin.Context) {
 
 // 数据概览
 func dataOverview(c *gin.Context) {
-	dir := common.UploadDir
+	dir := common.GetUploadDir()
 
 	usedSpace, availableSpace, _ := getDiskUsage(dir)
 
@@ -896,7 +924,7 @@ func dataOverview(c *gin.Context) {
 }
 
 func getUploadAvailableSpace(c *gin.Context) {
-	dir := common.UploadDir
+	dir := common.GetUploadDir()
 
 	usedSpace, freeSpace, _ := getDiskUsage(dir)
 

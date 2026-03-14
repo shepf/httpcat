@@ -77,6 +77,13 @@ func (l *YLog) SetMsg(msg string) {
 	l.msg = msg
 }
 
+// SetLevel 动态设置日志级别
+func SetLevel(level int) {
+	if defaultLogger != nil {
+		defaultLogger.lvl = level
+	}
+}
+
 func (l *YLog) Print(v ...interface{}) {
 	l.provider.Info(l.msg, zap.Any("info", v))
 }

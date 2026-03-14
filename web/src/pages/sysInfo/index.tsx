@@ -8,8 +8,8 @@ import {
 import { ProCard, ProDescriptions, Statistic, StatisticCard } from '@ant-design/pro-components';
 import { useEffect, useState } from 'react';
 import { Pie } from '@ant-design/plots';
-import { CheckCircleTwoTone, CloseCircleTwoTone, EyeOutlined, EyeInvisibleOutlined, WarningOutlined } from '@ant-design/icons';
-import { Space, Spin, Tag, Tooltip } from 'antd';
+import { CheckCircleTwoTone, CloseCircleTwoTone, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
+import { Space, Spin, Tooltip } from 'antd';
 
 export default () => {
   const [loading, setLoading] = useState(true);
@@ -19,7 +19,10 @@ export default () => {
   const [downloadStats, setDownloadStats] = useState<API.DownloadStatistics>({});
   const [usedSpace, setUsedSpace] = useState(0);
   const [freeSpace, setFreeSpace] = useState(0);
-  const [showWorkDir, setShowWorkDir] = useState(false);
+  const [showBaseDir, setShowBaseDir] = useState(false);
+  const [showUploadPath, setShowUploadPath] = useState(false);
+  const [showDownloadPath, setShowDownloadPath] = useState(false);
+  const [showWebPath, setShowWebPath] = useState(false);
 
   // 合并所有数据加载到单个 useEffect
   useEffect(() => {
@@ -105,9 +108,14 @@ export default () => {
             version: versionData.version,
             httpcat_uptime: versionData.uptime,
             work_dir: confData.workDir,
+            file_base_dir: confData.fileBaseDir,
+            abs_file_base_dir: confData.absFileBaseDir,
             upload_path: confData.uploadDir,
             download_path: confData.downloadDir,
+            abs_upload_path: confData.absUploadDir,
+            abs_download_path: confData.absDownloadDir,
             web_path: confData.webDir,
+            abs_web_path: confData.absWebDir,
             fileUploadEnable: confData.fileUploadEnable,
           }}
           emptyText="空"
@@ -140,48 +148,100 @@ export default () => {
             {
               title: (
                 <Space>
-                  项目工作目录
-                  {showWorkDir ? (
-                    <EyeOutlined style={{ cursor: 'pointer', color: '#1890ff' }} onClick={() => setShowWorkDir(false)} />
+                  文件根目录
+                  {showBaseDir ? (
+                    <EyeOutlined style={{ cursor: 'pointer', color: '#1890ff' }} onClick={() => setShowBaseDir(false)} />
                   ) : (
-                    <EyeInvisibleOutlined style={{ cursor: 'pointer', color: '#999' }} onClick={() => setShowWorkDir(true)} />
+                    <EyeInvisibleOutlined style={{ cursor: 'pointer', color: '#999' }} onClick={() => setShowBaseDir(true)} />
                   )}
                 </Space>
               ),
-              key: 'work_dir',
-              dataIndex: 'work_dir',
-              render: (_text, record) => (
-                showWorkDir ? <span>{record.work_dir}</span> : <span style={{ color: '#999' }}>••••••</span>
-              ),
-              copyable: showWorkDir,
+              key: 'file_base_dir',
+              dataIndex: 'file_base_dir',
+              render: (_text, record) => {
+                if (!showBaseDir) return <span style={{ color: '#999' }}>••••••</span>;
+                const isDefault = record.file_base_dir === record.work_dir;
+                return (
+                  <Space>
+                    <span>{record.abs_file_base_dir || record.file_base_dir}</span>
+                    {isDefault && (
+                      <Tooltip title="当前使用项目工作目录作为文件根目录，生产环境建议在配置文件 svr.yml 中修改 base_dir 为独立路径（如 /data/httpcat_data/）">
+                        <span style={{ color: '#faad14', fontSize: 12, cursor: 'help' }}>⚠ 默认路径</span>
+                      </Tooltip>
+                    )}
+                  </Space>
+                );
+              },
+              copyable: showBaseDir,
             },
             {
-              title: '上传文件路径',
-              key: 'upload_path',
-              dataIndex: 'upload_path',
-              copyable: true,
-              render: (_text, record) => (
+              title: (
                 <Space>
-                  <span>{record.upload_path}</span>
-                  {record.upload_path !== record.download_path && (
-                    <Tooltip title="上传与下载路径不一致，文件列表仅展示下载目录的文件">
-                      <Tag icon={<WarningOutlined />} color="warning">路径不一致</Tag>
-                    </Tooltip>
+                  上传文件路径
+                  {showUploadPath ? (
+                    <EyeOutlined style={{ cursor: 'pointer', color: '#1890ff' }} onClick={() => setShowUploadPath(false)} />
+                  ) : (
+                    <EyeInvisibleOutlined style={{ cursor: 'pointer', color: '#999' }} onClick={() => setShowUploadPath(true)} />
                   )}
                 </Space>
               ),
+              key: 'upload_path',
+              dataIndex: 'abs_upload_path',
+              copyable: showUploadPath,
+              render: (_text, record) => {
+                if (!showUploadPath) return <span style={{ color: '#999' }}>••••••</span>;
+                return (
+                  <Tooltip title={`配置值：${record.upload_path || '-'}`}>
+                    <span>{record.abs_upload_path}</span>
+                  </Tooltip>
+                );
+              },
             },
             {
-              title: '下载文件路径',
+              title: (
+                <Space>
+                  下载文件路径
+                  {showDownloadPath ? (
+                    <EyeOutlined style={{ cursor: 'pointer', color: '#1890ff' }} onClick={() => setShowDownloadPath(false)} />
+                  ) : (
+                    <EyeInvisibleOutlined style={{ cursor: 'pointer', color: '#999' }} onClick={() => setShowDownloadPath(true)} />
+                  )}
+                </Space>
+              ),
               key: 'download_path',
-              dataIndex: 'download_path',
-              copyable: true,
+              dataIndex: 'abs_download_path',
+              copyable: showDownloadPath,
+              render: (_text, record) => {
+                if (!showDownloadPath) return <span style={{ color: '#999' }}>••••••</span>;
+                return (
+                  <Tooltip title={`配置值：${record.download_path || '-'}`}>
+                    <span>{record.abs_download_path}</span>
+                  </Tooltip>
+                );
+              },
             },
             {
-              title: 'web前端路径',
+              title: (
+                <Space>
+                  web前端路径
+                  {showWebPath ? (
+                    <EyeOutlined style={{ cursor: 'pointer', color: '#1890ff' }} onClick={() => setShowWebPath(false)} />
+                  ) : (
+                    <EyeInvisibleOutlined style={{ cursor: 'pointer', color: '#999' }} onClick={() => setShowWebPath(true)} />
+                  )}
+                </Space>
+              ),
               key: 'web_path',
-              dataIndex: 'web_path',
-              copyable: true,
+              dataIndex: 'abs_web_path',
+              copyable: showWebPath,
+              render: (_text, record) => {
+                if (!showWebPath) return <span style={{ color: '#999' }}>••••••</span>;
+                return (
+                  <Tooltip title={`配置值：${record.web_path || '-'}`}>
+                    <span>{record.abs_web_path}</span>
+                  </Tooltip>
+                );
+              },
             },
           ]}
         />

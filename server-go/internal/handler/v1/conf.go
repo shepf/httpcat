@@ -35,8 +35,8 @@ func GetVersion(c *gin.Context) {
 }
 
 func GetConfInfo(c *gin.Context) {
-	uploadDir := common.UploadDir
-	downloadDir := common.DownloadDir
+	uploadDir := common.GetUploadDir()
+	downloadDir := common.GetDownloadDir()
 	webDir := common.StaticDir
 	// 上传文件开关状态
 	fileUploadEnable := common.FileUploadEnable
@@ -52,12 +52,21 @@ func GetConfInfo(c *gin.Context) {
 	absDownloadDir, _ := filepath.Abs(downloadDir)
 	absWebDir, _ := filepath.Abs(webDir)
 
+	// 文件根目录：如果是默认值 "./" 或空，展示为项目工作目录
+	fileBaseDir := common.FileBaseDir
+	absFileBaseDir, _ := filepath.Abs(fileBaseDir)
+	if fileBaseDir == "" || fileBaseDir == "./" || fileBaseDir == "." {
+		fileBaseDir = workDir // 默认等于项目工作目录，直接展示绝对路径
+	}
+
 	common.CreateResponse(c, common.SuccessCode, gin.H{
 		"uploadDir":        uploadDir,
 		"downloadDir":      downloadDir,
 		"webDir":           webDir,
 		"fileUploadEnable": fileUploadEnable,
 		"workDir":          workDir,
+		"fileBaseDir":      fileBaseDir,
+		"absFileBaseDir":   absFileBaseDir,
 		"absUploadDir":     absUploadDir,
 		"absDownloadDir":   absDownloadDir,
 		"absWebDir":        absWebDir,

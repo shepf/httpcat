@@ -22,8 +22,9 @@ var (
 func init() {
 	// 结尾的Var表示支持将参数的值，绑定到变量
 	pflag.StringVar(&StaticDir, "static", "./static/", "Specify the path for static resources (web), ending with a forward slash (/)")
-	pflag.StringVar(&UploadDir, "upload", "./website/upload/", "Specify the path for uploading files, ending with a forward slash (/)")
-	pflag.StringVar(&DownloadDir, "download", "./website/download/", "Specify the path for downloading files, ending with a forward slash (/)")
+	pflag.StringVar(&FileBaseDir, "basedir", "./", "Base directory for file upload/download (defaults to working directory)")
+	pflag.StringVar(&UploadDir, "upload", "website/upload/", "Upload subdirectory (relative to basedir)")
+	pflag.StringVar(&DownloadDir, "download", "website/download/", "Download subdirectory (relative to basedir)")
 
 	// 结尾的P表示支持短选项
 	pflag.IntVarP(&HttpPort, "port", "P", 0, "host port.")
@@ -80,6 +81,7 @@ func initDefault() {
 	if HttpPort == 0 {
 		HttpPort = UserConfig.GetInt("server.http.port")
 	}
+	RunningHttpPort = HttpPort // 记录实际运行端口，启动后不变
 	HttpReadTimeout = UserConfig.GetInt64("server.http.read_timeout")
 	HttpWriteTimeout = UserConfig.GetInt64("server.http.write_timeout")
 	HttpIdleTimeout = UserConfig.GetInt64("server.http.idle_timeout")
@@ -96,6 +98,36 @@ func initDefault() {
 	PersistentNotifyURL = UserConfig.GetString("server.http.file.upload_policy.persistent_notify_url")
 	EnableSqlite = UserConfig.GetBool("server.http.file.enable_sqlite")
 	SqliteDBPath = UserConfig.GetString("server.http.file.sqlite_db_path")
+
+	// 文件根目录：只能通过配置文件/命令行设定
+	if dir := UserConfig.GetString("server.http.file.base_dir"); dir != "" {
+		FileBaseDir = dir
+	}
+	// 上传/下载子目录：配置文件优先，pflag 默认值兜底
+	if dir := UserConfig.GetString("server.http.file.upload_dir"); dir != "" {
+		UploadDir = dir
+	}
+	if dir := UserConfig.GetString("server.http.file.download_dir"); dir != "" {
+		DownloadDir = dir
+	}
+
+	// 缩略图配置（默认 250x150）
+	ThumbWidth = UserConfig.GetInt("server.http.file.thumb_width")
+	if ThumbWidth == 0 {
+		ThumbWidth = 250
+	}
+	ThumbHeight = UserConfig.GetInt("server.http.file.thumb_height")
+	if ThumbHeight == 0 {
+		ThumbHeight = 150
+	}
+
+	// 上传策略
+	UploadPolicyDeadline = UserConfig.GetInt64("server.http.file.upload_policy.deadline")
+	UploadPolicyFSizeMin = UserConfig.GetInt64("server.http.file.upload_policy.fsizemin")
+	UploadPolicyFSizeLimit = UserConfig.GetInt64("server.http.file.upload_policy.fsizeLimit")
+
+	// 日志级别
+	LogLevel = UserConfig.GetInt("server.log.applog.loglevel")
 
 	// for mcp
 	McpEnable = UserConfig.GetBool("server.mcp.enable")
@@ -120,15 +152,17 @@ func initDefault() {
 
 	// 程序启动时候，判断上传下载目录是否存在，如果不存在则创建
 	// 判断目录是否存在，如果不存在则创建
-	if _, err := os.Stat(UploadDir); os.IsNotExist(err) {
-		err := os.MkdirAll(UploadDir, 0755)
+	uploadFullDir := GetUploadDir()
+	if _, err := os.Stat(uploadFullDir); os.IsNotExist(err) {
+		err := os.MkdirAll(uploadFullDir, 0755)
 		if err != nil {
 			ylog.Errorf("initDefault", "创建UploadDir目录失败", err)
 			panic(err)
 		}
 	}
-	if _, err := os.Stat(DownloadDir); os.IsNotExist(err) {
-		err := os.MkdirAll(DownloadDir, 0755)
+	downloadFullDir := GetDownloadDir()
+	if _, err := os.Stat(downloadFullDir); os.IsNotExist(err) {
+		err := os.MkdirAll(downloadFullDir, 0755)
 		if err != nil {
 			ylog.Errorf("initDefault", "创建DownloadDir目录失败", err)
 			panic(err)

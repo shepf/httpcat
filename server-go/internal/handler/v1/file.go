@@ -20,7 +20,7 @@ func DownloadFile(c *gin.Context) {
 	// 从请求参数获取文件名
 	fileName := c.Query("filename")
 
-	path := filepath.Join(common.DownloadDir, fileName)
+	path := filepath.Join(common.GetDownloadDir(), fileName)
 	//打印
 	ylog.Infof("downloadFile", "download file from: %s", path)
 

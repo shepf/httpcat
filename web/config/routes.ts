@@ -32,6 +32,12 @@
         component: './sysInfo',
       },
       {
+        path: '/admin/sys-config',
+        name: 'sys-config',
+        icon: 'setting',
+        component: './SysConfig',
+      },
+      {
         path: '/admin/sub-page',
         name: 'sub-page',
         icon: 'smile',

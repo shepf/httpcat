@@ -95,9 +95,9 @@ func UploadImage(c *gin.Context) {
 	fmt.Println(file, err, filename)
 
 	// 保存文件到本地, 配置的上传目录加images目录
-	filePath := filepath.Join(common.UploadDir, "images", filename)
+	filePath := filepath.Join(common.GetUploadDir(), "images", filename)
 	// 判断目录是否存在，如果不存在则创建
-	imagesDir := filepath.Join(common.UploadDir, "images")
+	imagesDir := filepath.Join(common.GetUploadDir(), "images")
 	if _, err := os.Stat(imagesDir); os.IsNotExist(err) {
 		err := os.MkdirAll(imagesDir, 0755)
 		if err != nil {
@@ -133,7 +133,7 @@ func UploadImage(c *gin.Context) {
 	}
 
 	// 生成缩略图
-	thumbFilePath := filepath.Join(common.UploadDir, "images", "thumb_"+filename)
+	thumbFilePath := filepath.Join(common.GetUploadDir(), "images", "thumb_"+filename)
 	thumbImage, err := imaging.Open(filePath)
 	if err != nil {
 		ylog.Errorf("uploadImage", "解析图片失败（文件可能不是有效图片）: %v", err)
@@ -142,7 +142,7 @@ func UploadImage(c *gin.Context) {
 		common.CreateResponse(c, common.ErrorCode, fmt.Sprintf("Invalid image file, failed to parse: %v", err))
 		return
 	}
-	thumbImage = imaging.Resize(thumbImage, 250, 150, imaging.Lanczos)
+	thumbImage = imaging.Resize(thumbImage, common.ThumbWidth, common.ThumbHeight, imaging.Lanczos)
 	err = imaging.Save(thumbImage, thumbFilePath)
 	if err != nil {
 		ylog.Errorf("uploadImage", "保存缩略图失败: %v", err)
@@ -210,7 +210,7 @@ func RenameImage(c *gin.Context) {
 	newName := c.PostForm("newName")
 
 	// 构建图片文件的完整路径
-	filePath := filepath.Join(common.UploadDir, "images", filename)
+	filePath := filepath.Join(common.GetUploadDir(), "images", filename)
 
 	// 判断文件是否存在
 	_, err := os.Stat(filePath)
@@ -222,7 +222,7 @@ func RenameImage(c *gin.Context) {
 	}
 
 	// 构建新的文件路径
-	newFilePath := filepath.Join(common.UploadDir, "images", newName)
+	newFilePath := filepath.Join(common.GetUploadDir(), "images", newName)
 
 	// 重命名文件
 	err = os.Rename(filePath, newFilePath)
@@ -263,7 +263,7 @@ func DeleteImage(c *gin.Context) {
 	}
 
 	// 构建图片文件的完整路径
-	filePath := filepath.Join(common.UploadDir, "images", filename)
+	filePath := filepath.Join(common.GetUploadDir(), "images", filename)
 
 	//// 判断文件是否存在
 	//_, err = os.Stat(filePath)
@@ -311,7 +311,7 @@ func ClearImage(c *gin.Context) {
 	}
 
 	// 删除图片文件夹下的所有文件
-	dirPath := filepath.Join(common.UploadDir, "images")
+	dirPath := filepath.Join(common.GetUploadDir(), "images")
 	err = os.RemoveAll(dirPath)
 	if err != nil {
 		ylog.Errorf("clearImage", "清空照片失败", err)
@@ -328,7 +328,7 @@ func ClearImage(c *gin.Context) {
 
 func DownloadImage(c *gin.Context) {
 	filename := c.Query("filename")
-	filePath := filepath.Join(common.UploadDir, "images", filename)
+	filePath := filepath.Join(common.GetUploadDir(), "images", filename)
 
 	// 检查文件是否存在
 	_, err := os.Stat(filePath)
@@ -357,6 +357,7 @@ type Pagination struct {
 func GetThumbnails(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	pageSizeStr := c.DefaultQuery("pageSize", "10")
+	search := c.DefaultQuery("search", "")
 
 	// 将字符串转换为整数
 	page, _ := strconv.Atoi(pageStr)
@@ -370,12 +371,18 @@ func GetThumbnails(c *gin.Context) {
 
 	var thumbnails []models.UploadImageModel
 	var totalItems int64 // 声明 totalItems 变量并设置初始值为 0
-	db.Model(&models.UploadImageModel{}).Count(&totalItems)
+
+	query := db.Model(&models.UploadImageModel{})
+	// 支持按文件名模糊搜索
+	if search != "" {
+		query = query.Where("file_name LIKE ?", "%"+search+"%")
+	}
+	query.Count(&totalItems)
 
 	// 计算总页数
 	totalPages := int(math.Ceil(float64(totalItems) / float64(pageSize)))
 
-	db.Order("created_at desc, download_count desc").Offset((page - 1) * pageSize).Limit(pageSize).Find(&thumbnails)
+	query.Order("created_at desc, download_count desc").Offset((page - 1) * pageSize).Limit(pageSize).Find(&thumbnails)
 
 	for i := range thumbnails {
 		thumbnailPath := thumbnails[i].ThumbFilePath

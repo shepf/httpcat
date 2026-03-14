@@ -107,8 +107,9 @@ server-go/
 port: 8888
 
 # 文件目录
-upload_dir: "./upload"
-download_dir: "./upload"
+base_dir: "./"                    # 文件根目录（默认项目工作目录，生产环境建议改为 /data/httpcat_data/ 等绝对路径）
+upload_dir: "website/upload/"     # 上传子目录（相对于 base_dir）
+download_dir: "website/download/" # 下载子目录（相对于 base_dir）
 static_dir: "./static"
 
 # 认证配置

@@ -9,7 +9,7 @@ import {
   StopOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import { List, Card, Pagination, Button, Space, message, Modal, Select, Tooltip } from 'antd';
+import { List, Card, Pagination, Button, Space, message, Modal, Select, Tooltip, Input } from 'antd';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { listThumbImages, downloadImage, deleteImage, clearImages } from '@/services/ant-design-pro/api';
 import CustomImageUpload from '../components/ImageUploader';
@@ -29,6 +29,7 @@ const ImageList: React.FC = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
+  const [searchText, setSearchText] = useState('');
 
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState(30);
@@ -39,7 +40,7 @@ const ImageList: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await listThumbImages({ page, pageSize });
+      const response = await listThumbImages({ page, pageSize, search: searchText || undefined });
       const thumbnails = response.data || [];
 
       const updatedData = thumbnails.map((item: API.ImageItem) => {
@@ -67,11 +68,11 @@ const ImageList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, searchText]);
 
   useEffect(() => {
     fetchData();
-  }, [page]);
+  }, [page, searchText]);
 
   // 自动刷新逻辑
   useEffect(() => {
@@ -185,6 +186,11 @@ const ImageList: React.FC = () => {
     );
   };
 
+  const handleSearch = (value: string) => {
+    setSearchText(value);
+    setPage(1); // 搜索时重置到第1页
+  };
+
   const handleClearAll = () => {
     Modal.confirm({
       title: '确认清空照片',
@@ -210,9 +216,18 @@ const ImageList: React.FC = () => {
       <List
         header={
           <div className={styles.header}>
-            <Button type="primary" danger icon={<ClearOutlined />} onClick={handleClearAll}>
-              清空照片
-            </Button>
+            <Space>
+              <Button type="primary" danger icon={<ClearOutlined />} onClick={handleClearAll}>
+                清空照片
+              </Button>
+              <Input.Search
+                placeholder="搜索图片名"
+                allowClear
+                style={{ width: 250 }}
+                onSearch={handleSearch}
+                onChange={(e) => !e.target.value && handleSearch('')}
+              />
+            </Space>
             <Space>
               <CustomImageUpload onUploadSuccess={fetchData} />
               <div className={styles.autoRefreshGroup}>

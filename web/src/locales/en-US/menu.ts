@@ -5,6 +5,7 @@ export default {
   'menu.admin': 'Admin',
   'menu.admin.sub-page': 'uploadToken-Manage',
   'menu.admin.sysinfo-page': 'System-Info',
+  'menu.admin.sys-config': 'System-Config',
   'menu.file_manage': 'File-Manage',
   'menu.file_manage.image-manage-page': 'Image-Manage',
   'menu.login': 'Login',

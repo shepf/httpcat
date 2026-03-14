@@ -134,6 +134,8 @@ declare namespace API {
     uploadDir?: string;
     webDir?: string;
     workDir?: string;
+    fileBaseDir?: string;
+    absFileBaseDir?: string;
     absUploadDir?: string;
     absDownloadDir?: string;
     absWebDir?: string;
@@ -182,5 +184,31 @@ declare namespace API {
       thumbUrl: string;
       name: string;
     };
+  }
+
+  // 系统配置
+  interface SysConfig {
+    fileBaseDir?: string;     // 文件根目录（只读，只能通过配置文件修改）
+    uploadDir?: string;       // 上传子目录
+    downloadDir?: string;     // 下载子目录
+    fullUploadDir?: string;   // 完整上传路径（只读）
+    fullDownloadDir?: string; // 完整下载路径（只读）
+    httpPort?: number;
+    fileUploadEnable?: boolean;
+    enableUploadToken?: boolean;
+    uploadPolicyDeadline?: number;
+    uploadPolicyFSizeMin?: number;
+    uploadPolicyFSizeLimit?: number;
+    persistentNotifyUrl?: string;
+    notifyEnable?: boolean;
+    thumbWidth?: number;
+    thumbHeight?: number;
+    logLevel?: number;
+  }
+
+  interface SysConfigUpdateResult {
+    changes?: string[];
+    needRestart?: boolean;
+    message?: string;
   }
 }

@@ -50,6 +50,10 @@ upload/
 uploads/
 
 # ============ Config ============
+# Runtime config (contains secrets like aksk, jwt_secret, app_secret)
+# Use internal/conf/svr.yml as template
+conf/
+
 # Local config overrides
 internal/conf/*.local.yml
 *.local

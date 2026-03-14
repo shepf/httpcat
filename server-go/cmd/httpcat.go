@@ -26,7 +26,14 @@ func main() {
 	go server.RunAPIServer(common.HttpPort, common.HttpSSLEnable, common.HttpAuthEnable, common.SSLCertFile, common.SSLKeyFile)
 	go debug()
 
-	<-common.Sig
+	// 同时监听系统信号和 API 触发的重启信号
+	select {
+	case <-common.Sig:
+		ylog.Infof("[MAIN]", "收到系统信号，直接退出")
+	case <-common.RestartChan:
+		ylog.Infof("[MAIN]", "收到 API 重启信号，执行优雅关闭")
+		server.GracefulShutdown()
+	}
 }
 
 func debug() {
