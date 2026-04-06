@@ -10,10 +10,13 @@ HttpCat is designed to provide a simple, efficient, and stable solution for file
 
 - 🚀 **Simple & Efficient** - Easy to deploy, no external dependencies
 - 🎨 **Modern Web UI** - Beautiful React-based management interface
+- 🔗 **File Sharing** - Share files via links with expiration, download limits, and access codes
 - 🤖 **MCP Support** - AI assistants (Claude, Cursor, CodeBuddy) can directly manage your files
 - 🐳 **Docker Ready** - One-command deployment with Docker
-- 🔐 **Secure** - Token-based authentication for uploads
+- 🔐 **Security Hardened** - bcrypt password hashing, mandatory password change on first login, path traversal protection
+- 🔑 **Open API** - AK/SK signature authentication for scripts, CI/CD, and AI agents
 - 📊 **Statistics** - Track uploads/downloads with detailed history
+- ⚙️ **Web Config Management** - Modify server configuration from the browser with hot-reload and one-click restart
 
 ## 📁 Project Structure
 
@@ -37,8 +40,13 @@ httpcat/
 │
 ├── web/                    # 🎨 React Frontend
 │   ├── src/                # Source code
+│   │   ├── pages/          # Pages
+│   │   │   ├── FileManage/ # File management (list, images)
+│   │   │   ├── ShareManage/# Share management
+│   │   │   ├── SharePage/  # Share access page (anonymous)
+│   │   │   ├── SysConfig/  # System configuration
+│   │   │   └── user/       # Login, change password
 │   ├── config/             # UmiJS configuration
-│   ├── mock/               # Mock data (dev only)
 │   └── package.json
 │
 ├── scripts/                # 🛠️ Scripts
@@ -119,7 +127,7 @@ Access the application:
 | Username | `admin` |
 | Password | `admin` |
 
-> ⚠️ **Security**: Change the default password after first login!
+> ⚠️ **Security**: First login will require you to change the default password before accessing any features.
 
 ## 🎉 Installation (Production)
 
@@ -127,7 +135,7 @@ Access the application:
 
 ```bash
 # Download and extract
-httpcat_version="v0.3.0"
+httpcat_version="v0.4.0"
 tar -zxvf httpcat_${httpcat_version}_linux-amd64.tar.gz
 cd httpcat_${httpcat_version}_linux-amd64
 
@@ -196,6 +204,15 @@ HttpCat supports MCP, allowing AI assistants to directly manage your file server
 
 ### Quick Setup
 
+> ⚠️ **Since v0.4.0, `auth_token` is required when MCP is enabled.** Configure it in `svr.yml`:
+>
+> ```yaml
+> server:
+>   mcp:
+>     enable: true
+>     auth_token: "your-secure-password"
+> ```
+
 Add to your MCP client configuration (Claude Desktop, Cursor, CodeBuddy, etc.):
 
 ```json
@@ -203,7 +220,10 @@ Add to your MCP client configuration (Claude Desktop, Cursor, CodeBuddy, etc.):
   "mcpServers": {
     "httpcat": {
       "type": "sse",
-      "url": "http://your-server:8888/mcp/sse"
+      "url": "http://your-server:8888/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer your-secure-password"
+      }
     }
   }
 }
@@ -225,27 +245,59 @@ Add to your MCP client configuration (Claude Desktop, Cursor, CodeBuddy, etc.):
 
 📖 For detailed MCP usage guide, see [MCP_USAGE.md](MCP_USAGE.md)
 
+## 🧠 AI Skill (Agent Skills Spec)
+
+HttpCat provides a Skill package following the [Agent Skills specification](https://agentskills.io/), installable in Claude Code / CodeBuddy / Cursor and other AI IDEs for natural language file management.
+
+```bash
+# Install in Claude Code
+ln -s /path/to/httpcat/httpcat-skill ~/.claude/skills/httpcat
+
+# Install in CodeBuddy
+ln -s /path/to/httpcat/httpcat-skill .codebuddy/skills/httpcat
+
+# Install in Cursor
+ln -s /path/to/httpcat/httpcat-skill .cursor/skills/httpcat
+```
+
+📖 For details, see [httpcat-skill/README.md](../httpcat-skill/README.md)
+
 ## 📡 API Reference
 
-### Upload File
+### Authentication
 
-```bash
-curl -v -F "f1=@/path/to/file" \
-  -H "UploadToken: your-token" \
-  http://localhost:8888/api/v1/file/upload
+HttpCat supports two authentication methods:
+
+| Method | Use Case | Header |
+|--------|----------|--------|
+| JWT Token | Web frontend login | `Authorization: Bearer <token>` |
+| AK/SK Signature | Scripts/CI/AI/Open API | `AccessKey` + `Signature` + `TimeStamp` |
+
+### Open API (AK/SK Signature Auth)
+
+When enabled, all `/api/v1/*` endpoints can be called via AK/SK signature without JWT login.
+
+Enable in `svr.yml`:
+
+```yaml
+server:
+  http:
+    auth:
+      open_api_enable: true
+      aksk:
+        your_access_key: your_secret_key
 ```
 
-### Download File
+Signature algorithm:
 
-```bash
-wget -O filename.jpg http://localhost:8888/api/v1/file/download?filename=filename.jpg
+```
+Signature = HMAC-SHA256(
+  "{Method}\n{Path}\n{Query}\n{AccessKey}\n{TimeStamp}\n{BodySHA256}",
+  SecretKey
+)
 ```
 
-### List Files
-
-```bash
-curl http://localhost:8888/api/v1/file/listFiles?dir=/
-```
+📖 For detailed API reference with examples, see the [Chinese README](../README.md#-api-接口)
 
 ## ⚙️ Configuration
 

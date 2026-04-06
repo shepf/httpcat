@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"io"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -16,38 +15,36 @@ import (
 )
 
 func DownloadFile(c *gin.Context) {
-
-	// 从请求参数获取文件名
 	fileName := c.Query("filename")
+	path, err := common.ResolvePathWithinBase(common.GetDownloadDir(), fileName)
+	if err != nil {
+		common.BadRequest(c, "invalid filename")
+		return
+	}
 
-	path := filepath.Join(common.GetDownloadDir(), fileName)
-	//打印
 	ylog.Infof("downloadFile", "download file from: %s", path)
 
-	// 打开文件
 	file, err := os.Open(path)
 	if err != nil {
 		c.AbortWithStatus(404)
-		ylog.Errorf("downloadFile", "打开文件失败,文件不存在", err)
+		ylog.Errorf("downloadFile", "打开文件失败,文件不存在: %v", err)
 		common.CreateResponse(c, common.FileIsNotExists, nil)
 		return
 	}
 	defer file.Close()
 
-	// 获取文件信息
-	fileInfo, _ := file.Stat()
+	fileInfo, err := file.Stat()
+	if err != nil || fileInfo.IsDir() {
+		common.BadRequest(c, "invalid filename")
+		return
+	}
 	fileSize := int(fileInfo.Size())
 
-	// 设置HEADER信息
-	c.Writer.Header().Set("Content-Disposition", "attachment; filename="+fileName)
+	c.Writer.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(fileInfo.Name()))
 	c.Writer.Header().Set("Content-Type", "application/octet-stream")
 	c.Writer.Header().Set("Content-Length", strconv.FormatInt(int64(fileSize), 10))
 
-	// 流式传输文件数据，并计算 MD5 值 相当于边下载边计算 MD5 值
-	// 创建 MD5 哈希计算器
 	hash := md5.New()
-
-	// 流式传输文件数据，并计算 MD5 值
 	buf := make([]byte, 1024)
 	for {
 		n, err := file.Read(buf)
@@ -55,33 +52,27 @@ func DownloadFile(c *gin.Context) {
 			break
 		}
 		if err != nil && err != io.EOF {
-			ylog.Errorf("DownloadFile", "读取文件失败", err)
+			ylog.Errorf("DownloadFile", "读取文件失败: %v", err)
 			break
 		}
 
-		// 写入下载响应
-		c.Writer.Write(buf[:n])
-
-		// 计算 MD5 值
-		hash.Write(buf[:n])
+		_, _ = c.Writer.Write(buf[:n])
+		_, _ = hash.Write(buf[:n])
 	}
 	fileMD5 := hex.EncodeToString(hash.Sum(nil))
 
-	// 获取其他文件信息
 	createdTime := fileInfo.ModTime().Format("2006-01-02 15:04:05")
 	modifiedTime := fileInfo.ModTime().Format("2006-01-02 15:04:05")
 
-	// 异步记录下载日志
 	go func() {
-		recordDownloadLog(fileName, c.Request.RemoteAddr, fileSize, createdTime, modifiedTime, fileMD5)
+		recordDownloadLog(fileInfo.Name(), c.Request.RemoteAddr, fileSize, createdTime, modifiedTime, fileMD5)
 	}()
-
 }
 
 func recordDownloadLog(fileName string, ip string, fileSize int, createdTime string, modifiedTime string, fileMD5 string) {
 	db, err := common.GetDB()
 	if err != nil {
-		ylog.Errorf("recordDownloadLog", "获取数据库连接失败", err)
+		ylog.Errorf("recordDownloadLog", "获取数据库连接失败: %v", err)
 		return
 	}
 
@@ -98,6 +89,6 @@ func recordDownloadLog(fileName string, ip string, fileSize int, createdTime str
 
 	err = db.Create(&log).Error
 	if err != nil {
-		ylog.Errorf("recordDownloadLog", "记录下载日志失败", err)
+		ylog.Errorf("recordDownloadLog", "记录下载日志失败: %v", err)
 	}
 }

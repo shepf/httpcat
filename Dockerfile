@@ -38,7 +38,7 @@ RUN go mod download
 COPY server-go/ ./
 
 # 编译（启用 CGO 支持 SQLite，CGO_CFLAGS 修复 musl 兼容性）
-ARG VERSION=v0.3.0
+ARG VERSION=v0.4.0
 ARG BUILD_TIME
 ARG COMMIT_ID
 RUN CGO_ENABLED=1 GOOS=linux CGO_CFLAGS="-D_LARGEFILE64_SOURCE" go build \

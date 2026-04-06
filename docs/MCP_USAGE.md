@@ -32,7 +32,22 @@
 
 ## 🚀 快速入门（5分钟）
 
-### 第一步：确认服务已运行
+### 第一步：配置 auth_token（必须）
+
+> ⚠️ **v0.4.0 起，MCP 开启时必须配置 `auth_token`**，未配置则服务拒绝启动。
+
+编辑配置文件 `conf/svr.yml`：
+
+```yaml
+server:
+  mcp:
+    enable: true
+    auth_token: "你的安全密码"  # 必填！设置一个强密码
+```
+
+配置完成后重启服务。
+
+### 第二步：确认服务已运行
 
 打开浏览器访问你的 HttpCat 地址，能看到页面说明服务正常：
 
@@ -40,12 +55,12 @@
 http://你的服务器IP:8888
 ```
 
-### 第二步：测试 MCP 端点
+### 第三步：测试 MCP 端点
 
-在终端运行（替换成你的地址）：
+在终端运行（替换成你的地址和 Token）：
 
 ```bash
-curl http://你的服务器IP:8888/mcp/sse
+curl -H "Authorization: Bearer 你的安全密码" http://你的服务器IP:8888/mcp/sse
 ```
 
 看到类似输出说明 MCP 正常工作：
@@ -54,9 +69,11 @@ event: endpoint
 data: /mcp/message?sessionId=xxxx-xxxx-xxxx
 ```
 
-### 第三步：配置 AI 工具
+> 不带 `Authorization` 头会返回 401 认证失败。
 
-根据你使用的 AI 工具，选择下面对应的配置方法。
+### 第四步：配置 AI 工具
+
+根据你使用的 AI 工具，选择下面对应的配置方法。**注意：所有客户端都需要配置 `headers` 传递 auth_token。**
 
 ---
 
@@ -117,6 +134,7 @@ data: /mcp/message?sessionId=xxxx-xxxx-xxxx
    | Name | `httpcat` |
    | Type | `SSE` |
    | URL | `http://你的服务器IP:8888/mcp/sse` |
+   | Headers | `Authorization: Bearer 你的安全密码` |
 
 5. 点击保存
 
@@ -146,6 +164,7 @@ data: /mcp/message?sessionId=xxxx-xxxx-xxxx
 | 类型 | SSE |
 | SSE 端点 | `http://服务器IP:端口/mcp/sse` |
 | 消息端点 | `http://服务器IP:端口/mcp/message` |
+| 认证头 | `Authorization: Bearer 你的auth_token` |
 
 ---
 
@@ -338,32 +357,21 @@ ls -la /你的上传目录/
 chmod -R 755 /你的上传目录/
 ```
 
-### Q5：如何启用 MCP 认证？
+### Q5：MCP 启动失败，提示 auth_token 未配置
 
-如果你的 HttpCat 部署在公网，建议启用认证：
+> ⚠️ **v0.4.0 起，MCP 开启时必须配置 `auth_token`**，否则服务会拒绝启动。
 
-**服务端配置** (`conf/svr.yml`)：
+**解决**：在 `conf/svr.yml` 中配置一个强密码：
 ```yaml
 server:
   mcp:
     enable: true
-    auth_token: "你的安全密码"  # 设置一个强密码
+    auth_token: "你的安全密码"  # 必填！
 ```
 
-**客户端配置**（以 Claude Desktop 为例）：
-```json
-{
-  "mcpServers": {
-    "httpcat": {
-      "type": "sse",
-      "url": "http://你的服务器IP:8888/mcp/sse",
-      "headers": {
-        "Authorization": "Bearer 你的安全密码"
-      }
-    }
-  }
-}
-```
+配置后重启服务，并确保所有 MCP 客户端都在 `headers` 中添加 `Authorization: Bearer 你的安全密码`。
+
+详见 [快速入门](#-快速入门5分钟) 中的第一步。
 
 ---
 
@@ -402,7 +410,7 @@ HttpCat MCP 提供 **9 个工具** 和 **3 个资源**：
 1. **两步删除确认**：删除文件需要先请求，再确认，防止误删
 2. **路径安全**：防止目录遍历攻击，只能操作上传目录内的文件
 3. **Token 分离**：上传 Token 需要登录后才能生成，保护上传权限
-4. **可选认证**：支持 Bearer Token 认证保护 MCP 端点
+4. **强制认证**：v0.4.0 起 MCP 必须配置 `auth_token`，通过 Bearer Token 认证保护 MCP 端点
 
 ### 自定义 MCP 端点路径
 
@@ -452,6 +460,7 @@ func handleMyCustomTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.
 
 | 版本 | 更新内容 |
 |-----|---------|
+| v0.4.0 | **MCP auth_token 改为强制配置**，未设置则拒绝启动；更新所有客户端配置示例 |
 | v0.3.0 | 新增 MCP 认证、两步删除确认、上传 Token 指南 |
 | v0.2.0 | 初始 MCP 支持，9 个 Tools + 3 个 Resources |
 

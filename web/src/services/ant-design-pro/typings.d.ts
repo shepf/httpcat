@@ -21,6 +21,7 @@ declare namespace API {
     };
     address?: string;
     phone?: string;
+    mustChangePassword?: boolean;
   };
 
   type LoginResult = {
@@ -28,6 +29,7 @@ declare namespace API {
     type?: string;
     currentAuthority?: string;
     token?: string;
+    mustChangePassword?: boolean;
   };
 
   type PageParams = {
@@ -210,5 +212,67 @@ declare namespace API {
     changes?: string[];
     needRestart?: boolean;
     message?: string;
+  }
+
+  // ===== 分享功能 =====
+  interface ShareItem {
+    id?: number;
+    shareCode?: string;
+    filePath?: string;
+    fileName?: string;
+    fileType?: string;
+    createdBy?: string;
+    extractCode?: string;
+    expireAt?: string;
+    maxDownloads?: number;
+    curDownloads?: number;
+    isActive?: boolean;
+    createdAt?: string;
+    updatedAt?: string;
+  }
+
+  interface CreateShareParams {
+    filePath: string;
+    fileName: string;
+    fileType?: string;
+    extractCode?: string;
+    expireHours?: number;
+    maxDownloads?: number;
+  }
+
+  interface CreateShareResult {
+    shareCode?: string;
+    extractCode?: string;
+    shareUrl?: string;
+    expireAt?: string;
+  }
+
+  interface ShareInfoResult {
+    valid?: boolean;
+    reason?: string;
+    share?: {
+      shareCode?: string;
+      fileName?: string;
+      fileType?: string;
+      hasExtractCode?: boolean;
+      expireAt?: string;
+      maxDownloads?: number;
+      curDownloads?: number;
+      isActive?: boolean;
+      createdBy?: string;
+      createdAt?: string;
+    };
+  }
+
+  interface ShareStats {
+    totalShares?: number;
+    activeShares?: number;
+    expiredShares?: number;
+    totalDownloads?: number;
+  }
+
+  interface ShareConfig {
+    shareEnable?: boolean;
+    anonymousAccess?: boolean;
   }
 }

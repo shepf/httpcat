@@ -53,7 +53,7 @@ var ErrorDescriptions = map[int]string{
 	RemoteAllFailedErrorCode: "all remote instance failed",
 	SSO_ERROR:                "sso error",
 	OTPErrorCode:             "otp required",
-	PasswordNeedChanged:      "password has not been updated for a long time",
+	PasswordNeedChanged:      "default password must be changed before continuing",
 	NeedCaptchaCheck:         "need captcha check",
 	LoginIpNotInWhiteList:    "login ip not in whitelist",
 	UserLocked:               "user locked",

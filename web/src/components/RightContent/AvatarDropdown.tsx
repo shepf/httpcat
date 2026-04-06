@@ -1,7 +1,7 @@
 import ChangePasswordModal from '@/pages/user/Login/ChangePasswordModal';
 import { changePasswd, outLogin } from '@/services/ant-design-pro/api';
 import { LockOutlined, LogoutOutlined } from '@ant-design/icons';
-import { Avatar, Menu, message, Spin } from 'antd';
+import { Avatar, Form, Menu, message, Spin } from 'antd';
 import type { ItemType } from 'antd/lib/menu/hooks/useItems';
 import { stringify } from 'querystring';
 import type { MenuInfo } from 'rc-menu/lib/interface';
@@ -9,7 +9,6 @@ import React, { useCallback, useState } from 'react';
 import { history, useModel } from 'umi';
 import HeaderDropdown from '../HeaderDropdown';
 import styles from './index.less';
-import { Form } from 'antd';
 
 export type GlobalHeaderRightProps = {
   menu?: boolean;
@@ -29,7 +28,7 @@ const loginOut = async () => {
   }
 };
 
-const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
+const AvatarDropdown: React.FC<GlobalHeaderRightProps> = () => {
   const { initialState, setInitialState } = useModel('@@initialState');
   const [modalVisible, setModalVisible] = useState(false);
   const [form] = Form.useForm();
@@ -55,6 +54,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
         form.resetFields();
         localStorage.removeItem('token');
         setModalVisible(false);
+        setInitialState((s) => ({ ...s, currentUser: undefined }));
 
         const { query = {}, search, pathname } = history.location;
         const { redirect } = query;
@@ -67,7 +67,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
       } else if (response.errorCode === 2) {
         message.error('旧密码错误');
       } else {
-        message.error('密码修改失败');
+        message.error(response.msg || '密码修改失败');
       }
     } catch (error) {
       message.error('密码修改失败');
@@ -126,12 +126,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
           <span className={`${styles.name} anticon`}>{currentUser.name}</span>
         </span>
       </HeaderDropdown>
-      <ChangePasswordModal
-        visible={modalVisible}
-        onCancel={handleCancelModal}
-        onOk={handleModalOk}
-        form={form}
-      />
+      <ChangePasswordModal visible={modalVisible} onCancel={handleCancelModal} onOk={handleModalOk} form={form} />
     </div>
   );
 };

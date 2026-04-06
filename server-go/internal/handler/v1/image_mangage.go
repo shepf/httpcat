@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"os"
@@ -32,16 +31,19 @@ func UploadImage(c *gin.Context) {
 		return
 	}
 
-	// 认证校验：优先 JWT（已登录用户），其次 UploadToken（外部调用）
 	jwtAuth := false
+	jwtUsername := ""
 	if authHeader := c.Request.Header.Get("Authorization"); authHeader != "" {
 		tokenStr := authHeader
 		if len(tokenStr) > 7 && strings.ToUpper(tokenStr[0:7]) == "BEARER " {
 			tokenStr = tokenStr[7:]
 		}
 		if tokenStr != "" {
-			if _, err := midware.VerifyToken(tokenStr, []byte(common.JwtSecret)); err == nil {
+			if claims, err := midware.VerifyToken(tokenStr, []byte(common.JwtSecret)); err == nil {
 				jwtAuth = true
+				if username, ok := (*claims)["username"].(string); ok {
+					jwtUsername = username
+				}
 			}
 		}
 	}
@@ -83,39 +85,51 @@ func UploadImage(c *gin.Context) {
 		return
 	}
 
-	// FormFile方法会读取参数"file"后面的文件名，返回值是一个File指针，和一个FileHeader指针，和一个err错误。
+	if jwtAuth && common.MustChangePassword(common.GetUser(jwtUsername)) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"errorCode": common.PasswordNeedChanged,
+			"msg":       common.ErrorDescriptions[common.PasswordNeedChanged],
+		})
+		return
+	}
+
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		common.BadRequest(c, "Bad request,check your file~")
 		return
 	}
+	defer file.Close()
 
-	// header调用Filename方法，就可以得到文件名
-	filename := header.Filename
+	filename, err := common.NormalizeSafeFileName(header.Filename)
+	if err != nil {
+		common.BadRequest(c, "invalid filename")
+		return
+	}
 	fmt.Println(file, err, filename)
 
-	// 保存文件到本地, 配置的上传目录加images目录
-	filePath := filepath.Join(common.GetUploadDir(), "images", filename)
-	// 判断目录是否存在，如果不存在则创建
-	imagesDir := filepath.Join(common.GetUploadDir(), "images")
-	if _, err := os.Stat(imagesDir); os.IsNotExist(err) {
-		err := os.MkdirAll(imagesDir, 0755)
-		if err != nil {
-			ylog.Errorf("uploadFile", "创建目录失败", err)
-			panic(err)
-		}
+	imagesDir, err := common.ResolvePathWithinBase(common.GetUploadDir(), "images")
+	if err != nil {
+		common.CreateResponse(c, common.ErrorCode, "Failed to resolve images directory")
+		return
+	}
+	if err := os.MkdirAll(imagesDir, 0755); err != nil {
+		ylog.Errorf("uploadFile", "创建目录失败: %v", err)
+		common.CreateResponse(c, common.ErrorCode, "Failed to prepare images directory")
+		return
 	}
 
-	// 判断文件是否存在
-	_, err = os.Stat(filePath)
-	if err == nil {
-		// 文件已存在
+	filePath, err := common.ResolvePathWithinBase(imagesDir, filename)
+	if err != nil {
+		common.BadRequest(c, "invalid filename")
+		return
+	}
+
+	if _, err := os.Stat(filePath); err == nil {
 		common.BadRequest(c, "File already exists")
 		return
 	}
 
 	ylog.Infof("uploadFile", "upload file to: %s", filePath)
-	// 创建一个文件，文件名为filename，这里的返回值out也是一个File指针
 	out, err := os.Create(filePath)
 	if err != nil {
 		ylog.Errorf("uploadImage", "创建文件失败: %v", err)
@@ -124,27 +138,27 @@ func UploadImage(c *gin.Context) {
 	}
 	defer out.Close()
 
-	// 将file的内容拷贝到out
-	_, err = io.Copy(out, file)
-	if err != nil {
+	if _, err = io.Copy(out, file); err != nil {
 		ylog.Errorf("uploadImage", "写入文件失败: %v", err)
 		common.CreateResponse(c, common.ErrorCode, fmt.Sprintf("Failed to save file: %v", err))
 		return
 	}
 
-	// 生成缩略图
-	thumbFilePath := filepath.Join(common.GetUploadDir(), "images", "thumb_"+filename)
+	thumbFilePath, err := common.ResolvePathWithinBase(imagesDir, "thumb_"+filename)
+	if err != nil {
+		os.Remove(filePath)
+		common.CreateResponse(c, common.ErrorCode, "Invalid thumbnail path")
+		return
+	}
 	thumbImage, err := imaging.Open(filePath)
 	if err != nil {
 		ylog.Errorf("uploadImage", "解析图片失败（文件可能不是有效图片）: %v", err)
-		// 清理已保存的无效文件
 		os.Remove(filePath)
 		common.CreateResponse(c, common.ErrorCode, fmt.Sprintf("Invalid image file, failed to parse: %v", err))
 		return
 	}
 	thumbImage = imaging.Resize(thumbImage, common.ThumbWidth, common.ThumbHeight, imaging.Lanczos)
-	err = imaging.Save(thumbImage, thumbFilePath)
-	if err != nil {
+	if err = imaging.Save(thumbImage, thumbFilePath); err != nil {
 		ylog.Errorf("uploadImage", "保存缩略图失败: %v", err)
 		common.CreateResponse(c, common.ErrorCode, fmt.Sprintf("Failed to generate thumbnail: %v", err))
 		return
@@ -152,11 +166,9 @@ func UploadImage(c *gin.Context) {
 
 	Ip := c.ClientIP()
 	uploadTime := time.Now().Format("2006-01-02 15:04:05")
-	// 获取文件信息
 	fileMD5, _ := utils.CalculateMD5(filePath)
 	fileUUID := uuid.NewV4().String()
 
-	//// 是否sqlite记录
 	if common.EnableSqlite {
 		ylog.Infof("uploadFile", "sqliteInsert enable")
 
@@ -166,14 +178,13 @@ func UploadImage(c *gin.Context) {
 			return
 		}
 
-		// 保存图片信息到数据库
 		image := models.UploadImageModel{
 			FileUUID:      fileUUID,
 			Size:          header.Size,
 			FileName:      filename,
 			FilePath:      filePath,
 			ThumbFilePath: thumbFilePath,
-			FileMD5:       fileMD5, // 计算文件的 MD5 值
+			FileMD5:       fileMD5,
 			DownloadCount: 0,
 			Sort:          1000,
 			UploadTime:    uploadTime,
@@ -183,19 +194,15 @@ func UploadImage(c *gin.Context) {
 		}
 
 		db.Create(&image)
-
 	}
 
-	// 返回响应
 	c.JSON(http.StatusOK, gin.H{
 		"errorCode": common.SuccessCode,
 		"msg":       "upload successful!",
 		"data": map[string]interface{}{
-			"fileUUID": fileUUID,
-			"name":     filename,
-			"status":   "done",
-			// 通常情况下，上传成功后前端需要再次请求图片的 URL 来展示图片。
-			// 在上传成功后，后端会返回图片的 URL，前端可以使用这个 URL 来获取图片数据，并将其展示在页面上。
+			"fileUUID":    fileUUID,
+			"name":        filename,
+			"status":      "done",
 			"url":         "/api/v1/imageManage/download?filename=" + filename,
 			"thumbUrl":    "/api/v1/imageManage/download?filename=thumb_" + filename,
 			"description": "",
@@ -205,133 +212,135 @@ func UploadImage(c *gin.Context) {
 }
 
 func RenameImage(c *gin.Context) {
-	// 获取请求参数
-	filename := c.PostForm("filename")
-	newName := c.PostForm("newName")
-
-	// 构建图片文件的完整路径
-	filePath := filepath.Join(common.GetUploadDir(), "images", filename)
-
-	// 判断文件是否存在
-	_, err := os.Stat(filePath)
-	if os.IsNotExist(err) {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "文件不存在",
-		})
+	filename, err := common.NormalizeSafeFileName(c.PostForm("filename"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "文件名不合法"})
+		return
+	}
+	newName, err := common.NormalizeSafeFileName(c.PostForm("newName"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "新文件名不合法"})
 		return
 	}
 
-	// 构建新的文件路径
-	newFilePath := filepath.Join(common.GetUploadDir(), "images", newName)
+	imagesDir, err := common.ResolvePathWithinBase(common.GetUploadDir(), "images")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "图片目录无效"})
+		return
+	}
+	filePath, err := common.ResolvePathWithinBase(imagesDir, filename)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "文件名不合法"})
+		return
+	}
+	newFilePath, err := common.ResolvePathWithinBase(imagesDir, newName)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "新文件名不合法"})
+		return
+	}
 
-	// 重命名文件
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "文件不存在"})
+		return
+	}
+
 	err = os.Rename(filePath, newFilePath)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "重命名失败",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "重命名失败"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "图片名字修改成功",
-	})
+	c.JSON(http.StatusOK, gin.H{"message": "图片名字修改成功"})
 }
 
 func DeleteImage(c *gin.Context) {
-	// 获取请求参数
-	filename := c.Query("filename")
-
-	// 从数据库中删除相应记录
-	db, err := common.GetDB()
+	filename, err := common.NormalizeSafeFileName(c.Query("filename"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "数据库连接失败",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "文件名不合法"})
 		return
 	}
 
-	// 删除数据库中的记录
+	db, err := common.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "数据库连接失败"})
+		return
+	}
+
 	var image models.UploadImageModel
 	err = db.Where("file_name = ?", filename).First(&image).Error
-	//如果您使用的是 GORM，默认启用了软删除功能，即通过将 deleted_at 字段设置为非空来标记删除的记录。
-	//这就是为什么在执行 db.Delete(&image) 后，实际上只是更新了 deleted_at 字段而不是真正删除记录。
 	if err == nil {
-		//db.Delete(&image)
-		//如果您想要完全删除记录而不是软删除，可以使用 Unscoped() 方法来删除记录。
 		db.Unscoped().Delete(&image)
 	}
 
-	// 构建图片文件的完整路径
-	filePath := filepath.Join(common.GetUploadDir(), "images", filename)
-
-	//// 判断文件是否存在
-	//_, err = os.Stat(filePath)
-	//if os.IsNotExist(err) {
-	//	c.JSON(http.StatusBadRequest, gin.H{
-	//		"message": "文件不存在",
-	//	})
-	//	return
-	//}
-
-	// 删除文件
-	err = os.Remove(filePath)
+	imagesDir, err := common.ResolvePathWithinBase(common.GetUploadDir(), "images")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "删除失败",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "图片目录无效"})
+		return
+	}
+	filePath, err := common.ResolvePathWithinBase(imagesDir, filename)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "文件名不合法"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "图片删除成功",
-	})
+	err = os.Remove(filePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "删除失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "图片删除成功"})
 }
 
 func ClearImage(c *gin.Context) {
 
-	// 清空数据库中的记录
 	db, err := common.GetDB()
 	if err != nil {
-		ylog.Errorf("clearImage", "数据库连接失败", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "数据库连接失败",
-		})
+		ylog.Errorf("clearImage", "数据库连接失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "数据库连接失败"})
 		return
 	}
 
-	// 清空数据库中的记录
 	err = db.Exec("DELETE FROM t_upload_image").Error
 	if err != nil {
-		ylog.Errorf("clearImage", "清空数据库记录失败", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "清空照片失败",
-		})
+		ylog.Errorf("clearImage", "清空数据库记录失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "清空照片失败"})
 		return
 	}
 
-	// 删除图片文件夹下的所有文件
-	dirPath := filepath.Join(common.GetUploadDir(), "images")
+	dirPath, err := common.ResolvePathWithinBase(common.GetUploadDir(), "images")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "图片目录无效"})
+		return
+	}
 	err = os.RemoveAll(dirPath)
 	if err != nil {
-		ylog.Errorf("clearImage", "清空照片失败", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "清空照片失败",
-		})
+		ylog.Errorf("clearImage", "清空照片失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "清空照片失败"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "照片清空成功",
-	})
+	c.JSON(http.StatusOK, gin.H{"message": "照片清空成功"})
 }
 
 func DownloadImage(c *gin.Context) {
-	filename := c.Query("filename")
-	filePath := filepath.Join(common.GetUploadDir(), "images", filename)
+	filename, err := common.NormalizeSafeFileName(c.Query("filename"))
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid filename")
+		return
+	}
+	imagesDir, err := common.ResolvePathWithinBase(common.GetUploadDir(), "images")
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Invalid image directory")
+		return
+	}
+	filePath, err := common.ResolvePathWithinBase(imagesDir, filename)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid filename")
+		return
+	}
 
-	// 检查文件是否存在
-	_, err := os.Stat(filePath)
+	info, err := os.Stat(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			c.String(http.StatusNotFound, "File not found")
@@ -340,8 +349,12 @@ func DownloadImage(c *gin.Context) {
 		c.String(http.StatusInternalServerError, "Failed to read file")
 		return
 	}
+	if info.IsDir() {
+		c.String(http.StatusBadRequest, "Invalid filename")
+		return
+	}
 
-	c.Header("Content-Disposition", "attachment; filename="+filename)
+	c.Header("Content-Disposition", "attachment; filename="+strconv.Quote(info.Name()))
 	c.Header("Content-Type", "application/octet-stream")
 	c.File(filePath)
 }
@@ -362,6 +375,12 @@ func GetThumbnails(c *gin.Context) {
 	// 将字符串转换为整数
 	page, _ := strconv.Atoi(pageStr)
 	pageSize, _ := strconv.Atoi(pageSizeStr)
+
+	imagesDir, err := common.ResolvePathWithinBase(common.GetUploadDir(), "images")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid image directory"})
+		return
+	}
 
 	db, err := common.GetDB()
 	if err != nil {
@@ -386,16 +405,30 @@ func GetThumbnails(c *gin.Context) {
 
 	for i := range thumbnails {
 		thumbnailPath := thumbnails[i].ThumbFilePath
+		relThumbnailPath, err := filepath.Rel(imagesDir, thumbnailPath)
+		if err != nil {
+			ylog.Warnf("GetThumbnails", "skip thumbnail with invalid path %q: %v", thumbnailPath, err)
+			continue
+		}
+		safeThumbnailPath, err := common.ResolvePathWithinBase(imagesDir, relThumbnailPath)
+		if err != nil {
+			ylog.Warnf("GetThumbnails", "skip thumbnail outside images dir %q: %v", thumbnailPath, err)
+			continue
+		}
 
 		// 检查缩略图文件是否存在
-		_, err := os.Stat(thumbnailPath)
+		_, err = os.Stat(safeThumbnailPath)
 		if os.IsNotExist(err) {
 			// 缩略图不存在，跳过当前循环
 			continue
 		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read thumbnail file"})
+			return
+		}
 
 		// 读取缩略图文件
-		fileBytes, err := ioutil.ReadFile(thumbnailPath)
+		fileBytes, err := os.ReadFile(safeThumbnailPath)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read thumbnail file"})
 			return

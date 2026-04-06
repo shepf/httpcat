@@ -2,14 +2,17 @@ package common
 
 import (
 	"fmt"
-	"httpcat/internal/common/userconfig"
-	"httpcat/internal/common/ylog"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/spf13/pflag"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"os"
-	"path/filepath"
-	"time"
+
+	"httpcat/internal/common/userconfig"
+	"httpcat/internal/common/ylog"
 )
 
 var (
@@ -24,7 +27,7 @@ func init() {
 	pflag.StringVar(&StaticDir, "static", "./static/", "Specify the path for static resources (web), ending with a forward slash (/)")
 	pflag.StringVar(&FileBaseDir, "basedir", "./", "Base directory for file upload/download (defaults to working directory)")
 	pflag.StringVar(&UploadDir, "upload", "website/upload/", "Upload subdirectory (relative to basedir)")
-	pflag.StringVar(&DownloadDir, "download", "website/download/", "Download subdirectory (relative to basedir)")
+	pflag.StringVar(&DownloadDir, "download", "website/upload/", "Download subdirectory (relative to basedir)")
 
 	// 结尾的P表示支持短选项
 	pflag.IntVarP(&HttpPort, "port", "P", 0, "host port.")
@@ -110,6 +113,16 @@ func initDefault() {
 	if dir := UserConfig.GetString("server.http.file.download_dir"); dir != "" {
 		DownloadDir = dir
 	}
+	if normalizedUploadDir, err := NormalizeSafeSubDirPath(UploadDir); err != nil {
+		ylog.Fatalf("initDefault", "invalid server.http.file.upload_dir: %v", err)
+	} else {
+		UploadDir = normalizedUploadDir
+	}
+	if normalizedDownloadDir, err := NormalizeSafeSubDirPath(DownloadDir); err != nil {
+		ylog.Fatalf("initDefault", "invalid server.http.file.download_dir: %v", err)
+	} else {
+		DownloadDir = normalizedDownloadDir
+	}
 
 	// 缩略图配置（默认 250x150）
 	ThumbWidth = UserConfig.GetInt("server.http.file.thumb_width")
@@ -129,9 +142,20 @@ func initDefault() {
 	// 日志级别
 	LogLevel = UserConfig.GetInt("server.log.applog.loglevel")
 
+	// for share
+	ShareEnable = UserConfig.GetBool("server.share.enable")
+	if !UserConfig.IsSet("server.share.enable") {
+		ShareEnable = true // 默认启用
+	}
+	ShareAnonymousAccess = UserConfig.GetBool("server.share.anonymous_access")
+	if !UserConfig.IsSet("server.share.anonymous_access") {
+		ShareAnonymousAccess = true // 默认允许匿名访问
+	}
+
 	// for mcp
 	McpEnable = UserConfig.GetBool("server.mcp.enable")
-	McpAuthToken = UserConfig.GetString("server.mcp.auth_token")
+	McpAuthToken = strings.TrimSpace(UserConfig.GetString("server.mcp.auth_token"))
+	validateMCPConfig()
 
 	// for open api (AK/SK)
 	OpenAPIEnable = UserConfig.GetBool("server.http.auth.open_api_enable")
@@ -182,6 +206,12 @@ func initLog() {
 		ylog.WithLevel(logLevel),
 	)
 	ylog.InitLogger(logger)
+}
+
+func validateMCPConfig() {
+	if McpEnable && McpAuthToken == "" {
+		ylog.Fatalf("initDefault", "server.mcp.auth_token is required when server.mcp.enable=true")
+	}
 }
 
 func initDB() {
@@ -248,6 +278,9 @@ func initDB() {
 
 		// 创建 t_upload_image 表（如果不存在）
 		InitializeUploadImageTable(db)
+
+		// 创建 t_share 表（如果不存在）
+		InitializeShareTable(db)
 
 		ylog.Infof("initDB", "init end~")
 	}

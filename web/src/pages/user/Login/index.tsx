@@ -11,6 +11,8 @@ const LoginMessage: React.FC<{ content: string }> = ({ content }) => (
   <Alert style={{ marginBottom: 24 }} message={content} type="error" showIcon />
 );
 
+const changePasswordPath = '/user/change-password';
+
 const Login: React.FC = () => {
   const [userLoginState, setUserLoginState] = useState<API.LoginResult>({});
   const { initialState, setInitialState } = useModel('@@initialState');
@@ -21,6 +23,7 @@ const Login: React.FC = () => {
     if (userInfo) {
       await setInitialState((s) => ({ ...s, currentUser: userInfo }));
     }
+    return userInfo;
   };
 
   const handleSubmit = async (values: API.LoginParams) => {
@@ -31,8 +34,12 @@ const Login: React.FC = () => {
           intl.formatMessage({ id: 'pages.login.success', defaultMessage: '登录成功！' }),
         );
         localStorage.setItem('token', msg.token!);
-        await fetchUserInfo();
+        const currentUser = await fetchUserInfo();
         if (!history) return;
+        if (msg.mustChangePassword || currentUser?.mustChangePassword) {
+          history.push(changePasswordPath);
+          return;
+        }
         const { query } = history.location;
         const { redirect } = query as { redirect: string };
         history.push(redirect || '/');

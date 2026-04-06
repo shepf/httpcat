@@ -2,7 +2,6 @@ package midware
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"errors"
 	"fmt"
 	"io"
@@ -21,9 +20,9 @@ import (
 )
 
 var whiteUrlList = []string{
-	"/api/v1/file/upload",        //上传文件，我们需要开放出来，使用ak、sk方式生成专门的上传token，不支持界面操作上传
-	"/api/v1/file/download",      // 下载文件，我们需要开放出来
-	"/api/v1/imageManage/upload", // 上传图片，使用 UploadToken 校验
+	"/api/v1/file/upload",          //上传文件，我们需要开放出来，使用ak、sk方式生成专门的上传token，不支持界面操作上传
+	"/api/v1/file/download",        // 下载文件，我们需要开放出来
+	"/api/v1/imageManage/upload",   // 上传图片，使用 UploadToken 校验
 	"/api/v1/imageManage/download", // 下载图片
 	"/api/v1/user/login/account"}
 
@@ -78,27 +77,6 @@ func VerifyToken(tokenString string, secret []byte) (*jwt.MapClaims, error) {
 	return nil, errors.New("verify token failed")
 }
 
-func checkPassword(password, salt, hash string) bool {
-	t := sha1.New()
-	_, err := io.WriteString(t, password+salt)
-	if err != nil {
-		return false
-	}
-	if fmt.Sprintf("%x", t.Sum(nil)) == hash {
-		return true
-	}
-	return false
-}
-
-func GenPassword(password, salt string) string {
-	t := sha1.New()
-	_, err := io.WriteString(t, password+salt)
-	if err != nil {
-		return ""
-	}
-	return fmt.Sprintf("%x", t.Sum(nil))
-}
-
 func CheckUser(username, password string) (*common.User, error) {
 	u := common.GetUser(username)
 	if u == nil {
@@ -106,10 +84,51 @@ func CheckUser(username, password string) (*common.User, error) {
 		return nil, errors.New("user not found")
 	}
 
-	if !checkPassword(password, u.Salt, u.Password) {
+	valid, legacyHash, err := common.VerifyPassword(u, password)
+	if err != nil {
+		ylog.Errorf("CheckUser", "verify password failed: %v", err)
 		return u, errors.New("verify password failed")
 	}
+	if !valid {
+		return u, errors.New("verify password failed")
+	}
+
+	if legacyHash {
+		if err := common.UpgradeLegacyPasswordHash(u, password); err != nil {
+			ylog.Warnf("CheckUser", "upgrade legacy password hash failed for user=%s: %v", username, err)
+		}
+	}
+
 	return u, nil
+}
+
+func mustForcePasswordChange(userName string) bool {
+	return common.MustChangePassword(common.GetUser(userName))
+}
+
+func passwordChangeAllowedPath(path string) bool {
+	switch path {
+	case "/api/v1/user/currentUser", "/api/v1/user/changePasswd", "/api/v1/user/login/outLogin":
+		return true
+	default:
+		return false
+	}
+}
+
+func abortPasswordChangeRequired(c *gin.Context) {
+	c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+		"errorCode": common.PasswordNeedChanged,
+		"msg":       common.ErrorDescriptions[common.PasswordNeedChanged],
+		"data":      nil,
+	})
+}
+
+func enforcePasswordChange(c *gin.Context, userName string) bool {
+	if userName == "" || !mustForcePasswordChange(userName) || passwordChangeAllowedPath(c.Request.URL.Path) {
+		return false
+	}
+	abortPasswordChangeRequired(c)
+	return true
 }
 
 func GeneralJwtToken(userName string) (string, error) {
@@ -194,11 +213,14 @@ func TokenAuth() gin.HandlerFunc {
 			userName = currentUser.(string)
 		}
 
-	// c.Set("user", userName)：将上下文中的键值对 "user" 设置为 userName。
-	//这样，在后续的处理器函数或中间件中可以通过 c.Get("user") 方法获取到该值，用于后续的业务逻辑处理。
+		if enforcePasswordChange(c, userName) {
+			return
+		}
+
+		// c.Set("user", userName)：将上下文中的键值对 "user" 设置为 userName。
+		//这样，在后续的处理器函数或中间件中可以通过 c.Get("user") 方法获取到该值，用于后续的业务逻辑处理。
 		c.Set("user", userName)
 		c.Next()
-		return
 	}
 }
 
@@ -303,8 +325,11 @@ func TokenOrAKSKAuth() gin.HandlerFunc {
 			userName = currentUser.(string)
 		}
 
+		if enforcePasswordChange(c, userName) {
+			return
+		}
+
 		c.Set("user", userName)
 		c.Next()
-		return
 	}
 }

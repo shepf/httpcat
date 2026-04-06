@@ -6,12 +6,13 @@ import {
   EyeOutlined,
   LinkOutlined,
   ReloadOutlined,
+  ShareAltOutlined,
   StopOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import { List, Card, Pagination, Button, Space, message, Modal, Select, Tooltip, Input } from 'antd';
+import { List, Card, Pagination, Button, Space, message, Modal, Select, Tooltip, Input, Form, InputNumber, Switch, Tag, Typography } from 'antd';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { listThumbImages, downloadImage, deleteImage, clearImages } from '@/services/ant-design-pro/api';
+import { listThumbImages, downloadImage, deleteImage, clearImages, createShare } from '@/services/ant-design-pro/api';
 import CustomImageUpload from '../components/ImageUploader';
 import styles from './index.less';
 
@@ -20,6 +21,8 @@ const AUTO_REFRESH_OPTIONS = [
   { label: '30秒', value: 30 },
   { label: '60秒', value: 60 },
 ];
+
+const { Paragraph } = Typography;
 
 const ImageList: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -36,6 +39,15 @@ const ImageList: React.FC = () => {
   const [countdown, setCountdown] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 分享相关状态
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [shareResultVisible, setShareResultVisible] = useState(false);
+  const [shareResult, setShareResult] = useState<API.CreateShareResult | null>(null);
+  const [currentImage, setCurrentImage] = useState<string>('');
+  const [shareLoading, setShareLoading] = useState(false);
+  const [useExtractCode, setUseExtractCode] = useState(true);
+  const [shareForm] = Form.useForm();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -186,6 +198,50 @@ const ImageList: React.FC = () => {
     );
   };
 
+  const handleShare = (fileName: string) => {
+    setCurrentImage(fileName);
+    setUseExtractCode(true);
+    shareForm.resetFields();
+    shareForm.setFieldsValue({ expireHours: 24, maxDownloads: 0 });
+    setShareModalVisible(true);
+  };
+
+  const handleCreateShare = async () => {
+    if (!currentImage) return;
+    setShareLoading(true);
+    try {
+      const values = await shareForm.validateFields();
+      const params: API.CreateShareParams = {
+        filePath: currentImage,
+        fileName: currentImage,
+        fileType: 'image',
+        expireHours: values.expireHours || 0,
+        maxDownloads: values.maxDownloads || 0,
+        extractCode: useExtractCode ? 'auto' : '',
+      };
+      const res = await createShare(params);
+      if (res.errorCode === 0 && res.data) {
+        setShareResult(res.data);
+        setShareModalVisible(false);
+        setShareResultVisible(true);
+        message.success('分享创建成功');
+      } else {
+        message.error(res.msg || '创建分享失败');
+      }
+    } catch {
+      message.error('创建分享失败');
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const copyShareToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(
+      () => message.success('已复制到剪贴板'),
+      () => message.error('复制失败，请手动复制'),
+    );
+  };
+
   const handleSearch = (value: string) => {
     setSearchText(value);
     setPage(1); // 搜索时重置到第1页
@@ -289,6 +345,7 @@ const ImageList: React.FC = () => {
                 ) : null,
                 <CopyOutlined key="copy" onClick={() => handleCopyImage(item.FileName)} />,
                 <LinkOutlined key="link" onClick={() => handleCopyLink(item.FileName)} />,
+                <ShareAltOutlined key="share" onClick={() => handleShare(item.FileName)} />,
                 <DownloadOutlined key="download" onClick={() => handleDownload(item.FileName)} />,
                 <DeleteOutlined key="delete" onClick={() => handleDelete(item.FileName)} />,
               ].filter(Boolean)}
@@ -317,6 +374,93 @@ const ImageList: React.FC = () => {
         centered
       >
         <img alt="预览" style={{ width: '100%' }} src={previewImage} />
+      </Modal>
+
+      {/* 创建分享弹窗 */}
+      <Modal
+        title={`分享图片: ${currentImage}`}
+        open={shareModalVisible}
+        onOk={handleCreateShare}
+        onCancel={() => setShareModalVisible(false)}
+        confirmLoading={shareLoading}
+        okText="创建分享"
+        cancelText="取消"
+      >
+        <Form form={shareForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item label="有效期" name="expireHours">
+            <Select>
+              <Select.Option value={1}>1 小时</Select.Option>
+              <Select.Option value={6}>6 小时</Select.Option>
+              <Select.Option value={24}>1 天</Select.Option>
+              <Select.Option value={72}>3 天</Select.Option>
+              <Select.Option value={168}>7 天</Select.Option>
+              <Select.Option value={720}>30 天</Select.Option>
+              <Select.Option value={0}>永不过期</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item label="提取码">
+            <Switch
+              checked={useExtractCode}
+              onChange={setUseExtractCode}
+              checkedChildren="启用"
+              unCheckedChildren="关闭"
+            />
+            {useExtractCode && (
+              <div style={{ marginTop: 8, color: 'rgba(0,0,0,0.45)', fontSize: 12 }}>
+                创建后将自动生成 4 位提取码
+              </div>
+            )}
+          </Form.Item>
+          <Form.Item label="最大下载次数" name="maxDownloads" extra="设为 0 表示不限制">
+            <InputNumber min={0} max={99999} style={{ width: '100%' }} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 分享结果弹窗 */}
+      <Modal
+        title="分享创建成功"
+        open={shareResultVisible}
+        onCancel={() => setShareResultVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setShareResultVisible(false)}>关闭</Button>,
+          <Button
+            key="copy"
+            type="primary"
+            icon={<CopyOutlined />}
+            onClick={() => {
+              const url = `${window.location.origin}${shareResult?.shareUrl || ''}`;
+              const text = shareResult?.extractCode
+                ? `链接: ${url}\n提取码: ${shareResult.extractCode}`
+                : `链接: ${url}`;
+              copyShareToClipboard(text);
+            }}
+          >
+            复制分享信息
+          </Button>,
+        ]}
+      >
+        {shareResult && (
+          <div style={{ lineHeight: 2.2 }}>
+            <Paragraph>
+              <strong>分享链接：</strong>
+              <a href={shareResult.shareUrl} target="_blank" rel="noopener noreferrer">
+                {window.location.origin}{shareResult.shareUrl}
+              </a>
+            </Paragraph>
+            {shareResult.extractCode && (
+              <Paragraph>
+                <strong>提取码：</strong>
+                <Tag color="blue" style={{ fontSize: 16, padding: '2px 12px' }}>{shareResult.extractCode}</Tag>
+              </Paragraph>
+            )}
+            {shareResult.expireAt && (
+              <Paragraph>
+                <strong>过期时间：</strong>{new Date(shareResult.expireAt).toLocaleString()}
+              </Paragraph>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   );

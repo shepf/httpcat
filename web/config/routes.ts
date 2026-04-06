@@ -1,5 +1,10 @@
 ﻿export default [
   {
+    path: '/s/:code',
+    layout: false,
+    component: './SharePage',
+  },
+  {
     path: '/user',
     layout: false,
     routes: [
@@ -7,6 +12,11 @@
         name: 'login',
         path: '/user/login',
         component: './user/Login',
+      },
+      {
+        name: 'change-password',
+        path: '/user/change-password',
+        component: './user/ChangePassword',
       },
       {
         component: './404',
@@ -65,6 +75,12 @@
         name: 'image-manage-page',
         icon: 'picture',
         component: './FileManage/ImageManage',
+      },
+      {
+        path: '/file_manage/share-manage',
+        name: 'share-manage',
+        icon: 'share',
+        component: './ShareManage',
       },
       {
         component: './404',

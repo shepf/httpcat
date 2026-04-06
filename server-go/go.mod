@@ -21,6 +21,7 @@ require (
 	github.com/spf13/viper v1.17.0
 	go.mongodb.org/mongo-driver v1.13.1
 	go.uber.org/zap v1.26.0
+	golang.org/x/crypto v0.16.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gorm.io/driver/sqlite v1.5.4
 	gorm.io/gorm v1.25.5
@@ -134,7 +135,6 @@ require (
 	go.uber.org/fx v1.20.1 // indirect
 	go.uber.org/mock v0.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.16.0 // indirect
 	golang.org/x/exp v0.0.0-20231127185646-65229373498e // indirect
 	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8 // indirect
 	golang.org/x/mod v0.14.0 // indirect

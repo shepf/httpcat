@@ -116,38 +116,7 @@ func GetSysConfig(c *gin.Context) {
 // validateSubDirPath 验证子目录路径安全性
 // 子目录路径基于 FileBaseDir，如 upload/、download/、images/upload/
 func validateSubDirPath(path string) (string, error) {
-	// 不允许空路径
-	if strings.TrimSpace(path) == "" {
-		return "", fmt.Errorf("路径不能为空")
-	}
-
-	// 不允许包含 .. 防止目录穿越
-	if strings.Contains(path, "..") {
-		return "", fmt.Errorf("路径不允许包含 '..'，防止目录穿越")
-	}
-
-	// 不允许以 / 开头（子目录不应该是绝对路径）
-	if strings.HasPrefix(path, "/") {
-		return "", fmt.Errorf("子目录路径不能以 / 开头，如 upload/")
-	}
-
-	// 去掉 ./ 前缀（统一格式）
-	path = strings.TrimPrefix(path, "./")
-
-	// 确保以 / 结尾
-	if !strings.HasSuffix(path, "/") {
-		path = path + "/"
-	}
-
-	// 清理路径（去掉多余的 / 等）
-	cleaned := filepath.Clean(path) + "/"
-
-	// 二次检查清理后的路径不包含 ..
-	if strings.Contains(cleaned, "..") {
-		return "", fmt.Errorf("路径不安全，包含非法字符")
-	}
-
-	return cleaned, nil
+	return common.NormalizeSafeSubDirPath(path)
 }
 
 // UpdateSysConfig 更新系统配置

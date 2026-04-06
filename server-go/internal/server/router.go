@@ -37,6 +37,9 @@ func RegisterRouter(r *gin.Engine) {
 	// 注册 MCP Server 路由（必须在前端路由之前，因为前端的 NoRoute 会捕获所有未匹配路由）
 	registerMCPRoutes(r)
 
+	// 注册分享公开路由（无需认证，必须在前端 NoRoute 之前）
+	registerSharePublicRoutes(r)
+
 	registerForFrontEnd(r)
 
 	r.Use(midware.Metrics())
@@ -147,8 +150,34 @@ func RegisterRouter(r *gin.Engine) {
 			}
 		}
 
+		// 分享管理接口（需认证）
+		shareRouter := apiv1Group.Group("/share")
+		{
+			shareRouter.POST("", v1.CreateShare)
+			shareRouter.GET("/list", v1.ListShares)
+			shareRouter.DELETE("/:code", v1.DeleteShare)
+			shareRouter.GET("/stats", v1.ShareStats)
+			shareRouter.GET("/config", v1.GetShareConfig)
+		}
+
 	}
 
+}
+
+// registerSharePublicRoutes 注册分享公开路由（无需认证）
+func registerSharePublicRoutes(r *gin.Engine) {
+	if !common.ShareEnable {
+		ylog.Infof("RegisterRouter", "Share feature is disabled")
+		return
+	}
+
+	sharePublic := r.Group("/s")
+	{
+		sharePublic.GET("/:code", v1.GetShareInfo)
+		sharePublic.POST("/:code/verify", v1.VerifyShareCode)
+		sharePublic.GET("/:code/download", v1.DownloadShareFile)
+	}
+	ylog.Infof("RegisterRouter", "Share public routes registered at /s/* (anonymous_access=%v)", common.ShareAnonymousAccess)
 }
 
 // registerMCPRoutes 注册 MCP Server 路由

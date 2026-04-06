@@ -274,3 +274,58 @@ export async function getFirstUploadToken(): Promise<string> {
   });
   return tokenResult?.data || '';
 }
+
+// ==================== 文件分享 ====================
+
+/** 创建分享 POST /api/v1/share */
+export async function createShare(data: API.CreateShareParams) {
+  return request<API.MyResponse<API.CreateShareResult>>('/api/v1/share', {
+    method: 'POST',
+    data,
+  });
+}
+
+/** 获取分享列表 GET /api/v1/share/list */
+export async function listShares(params: { current?: number; pageSize?: number }) {
+  return request<API.MyResponse<{ list: API.ShareItem[]; current: number; pageSize: number; total: number }>>('/api/v1/share/list', {
+    method: 'GET',
+    params,
+  });
+}
+
+/** 取消分享 DELETE /api/v1/share/:code */
+export async function deleteShare(code: string) {
+  return request<API.MyResponse<string>>(`/api/v1/share/${code}`, {
+    method: 'DELETE',
+  });
+}
+
+/** 获取分享信息（公开接口） GET /s/:code */
+export async function getShareInfo(code: string) {
+  return request<API.ShareInfoResult>(`/s/${code}`, {
+    method: 'GET',
+  });
+}
+
+/** 验证提取码 POST /s/:code/verify */
+export async function verifyShareCode(code: string, extractCode: string) {
+  return request<{ valid: boolean; reason?: string }>(`/s/${code}/verify`, {
+    method: 'POST',
+    data: { extractCode },
+  });
+}
+
+/** 获取分享统计 GET /api/v1/share/stats */
+export async function getShareStats() {
+  return request<API.MyResponse<API.ShareStats>>('/api/v1/share/stats', {
+    method: 'GET',
+  });
+}
+
+/** 获取分享配置 GET /api/v1/share/config */
+export async function getShareConfig() {
+  return request<API.MyResponse<API.ShareConfig>>('/api/v1/share/config', {
+    method: 'GET',
+  });
+}
+

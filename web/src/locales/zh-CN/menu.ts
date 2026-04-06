@@ -9,6 +9,7 @@ export default {
   'menu.file_manage': '文件管理',
   'menu.file_manage.file-list-page': '文件列表',
   'menu.file_manage.image-manage-page': '图片管理',
+  'menu.file_manage.share-manage': '分享管理',
   'menu.login': '登录',
   'menu.register': '注册',
   'menu.register-result': '注册结果',

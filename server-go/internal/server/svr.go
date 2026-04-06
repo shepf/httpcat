@@ -9,11 +9,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -266,15 +264,14 @@ func uploadFile(c *gin.Context) {
 		return
 	}
 
-	// FormFile方法会读取参数“upload”后面的文件名，返回值是一个File指针，和一个FileHeader指针，和一个err错误。
 	file, header, err := c.Request.FormFile("f1")
 	if err != nil {
 		common.BadRequest(c, "Bad request,check your file~")
 		return
 	}
+	defer file.Close()
 
 	appkey := ""
-	// 判断是否开启了UploadToken校验
 	if common.EnableUploadToken {
 		uploadToken := c.Request.Header.Get("UploadToken")
 		if uploadToken == "" {
@@ -282,14 +279,12 @@ func uploadFile(c *gin.Context) {
 			return
 		}
 
-		// 从UploadToken中获取appkey
 		parts := strings.Split(uploadToken, ":")
 		if len(parts) != 3 {
 			common.Unauthorized(c, "Invalid UploadToken format")
 			return
 		}
 		appkey = parts[0]
-		// 根据appkey获取对应的appsecret
 		common.UploadTokenLock.RLock()
 		tokenItem, ok := common.UploadTokenTable[appkey]
 		common.UploadTokenLock.RUnlock()
@@ -298,64 +293,62 @@ func uploadFile(c *gin.Context) {
 			return
 		}
 
-		// appkey开启或关闭判断
 		if tokenItem.State == "closed" {
 			common.Unauthorized(c, "Invalid Appkey, appkey is closed")
 			return
 		}
 
-		// 校验UploadToken
 		mac := auth.New(appkey, tokenItem.Appsecret)
-
 		if !mac.VerifyUploadToken(uploadToken) {
 			common.Unauthorized(c, "UploadToken is invalid")
 			return
 		}
 	}
 
-	// header调用Filename方法，就可以得到文件名
-	filename := header.Filename
-	fmt.Println(file, err, filename)
+	filename, err := common.NormalizeSafeFileName(header.Filename)
+	if err != nil {
+		common.BadRequest(c, "invalid filename")
+		return
+	}
 
-	filePath := common.GetUploadDir() + filename
-	// 判断目录是否存在，如果不存在则创建
-	if _, err := os.Stat(common.GetUploadDir()); os.IsNotExist(err) {
-		err := os.MkdirAll(common.GetUploadDir(), 0755)
-		if err != nil {
-			ylog.Errorf("uploadFile", "创建目录失败", err)
-			panic(err)
-		}
+	if err := os.MkdirAll(common.GetUploadDir(), 0755); err != nil {
+		ylog.Errorf("uploadFile", "创建目录失败", err)
+		common.CreateResponse(c, common.ErrorCode, "Failed to prepare upload directory")
+		return
+	}
+
+	filePath, err := common.ResolvePathWithinBase(common.GetUploadDir(), filename)
+	if err != nil {
+		common.BadRequest(c, "invalid filename")
+		return
 	}
 
 	ylog.Infof("uploadFile", "upload file to: %s", filePath)
-	// 创建一个文件，文件名为filename，这里的返回值out也是一个File指针
 	out, err := os.Create(filePath)
 	if err != nil {
-		log.Fatal(err)
+		ylog.Errorf("uploadFile", "创建文件失败: %v", err)
+		common.CreateResponse(c, common.ErrorCode, "Failed to create file")
+		return
 	}
 	defer out.Close()
 
-	// 将file的内容拷贝到out
-	_, err = io.Copy(out, file)
-	if err != nil {
-		log.Fatal(err)
+	if _, err = io.Copy(out, file); err != nil {
+		ylog.Errorf("uploadFile", "写入文件失败: %v", err)
+		common.CreateResponse(c, common.ErrorCode, "Failed to save file")
+		return
 	}
 
 	Ip := c.ClientIP()
 	uploadTime := time.Now().Format("2006-01-02 15:04:05")
-	// 获取文件信息
 	fileInfo, _ := os.Stat(filePath)
 	fileSize := utils.FormatSize(fileInfo.Size())
 	fileMD5, _ := utils.CalculateMD5(filePath)
-	fileCreatedTime := fileInfo.ModTime().Unix()  // 文件创建时间的时间戳
-	fileModifiedTime := fileInfo.ModTime().Unix() // 文件修改时间的时间戳
+	fileCreatedTime := fileInfo.ModTime().Unix()
+	fileModifiedTime := fileInfo.ModTime().Unix()
 
 	fmt.Println("PersistentNotifyURL:", common.PersistentNotifyURL)
-	// 上传成功后，发送通知
 	if common.PersistentNotifyURL != "" {
-
 		ylog.Infof("uploadFile", "send notify to: %s", common.PersistentNotifyURL)
-		// 构建 Markdown 通知内容
 
 		markdownContent := fmt.Sprintf(`>有文件上传归档,上传信息：
 			- IP地址：%s
@@ -368,7 +361,6 @@ func uploadFile(c *gin.Context) {
 		go utils.SendNotify(common.PersistentNotifyURL, markdownContent)
 	}
 
-	// 是否sqlite记录
 	if common.EnableSqlite {
 		ylog.Infof("uploadFile", "sqliteInsert enable")
 		go sqliteInsert(Ip, appkey, uploadTime, filename, fileSize, fileMD5, fileCreatedTime, fileModifiedTime)
@@ -408,33 +400,34 @@ func sqliteInsert(Ip string, appkey string, uploadTime string, filename string, 
 
 func downloadFile(c *gin.Context) {
 
-	// 从请求参数获取文件名
 	fileName := c.Query("filename")
-
-	path := filepath.Join(common.GetDownloadDir(), fileName)
-	//打印
+	path, err := common.ResolvePathWithinBase(common.GetDownloadDir(), fileName)
+	if err != nil {
+		common.BadRequest(c, "invalid filename")
+		return
+	}
 	ylog.Infof("downloadFile", "download file from: %s", path)
 
-	// 打开文件
 	file, err := os.Open(path)
 	if err != nil {
 		c.AbortWithStatus(404)
-		ylog.Errorf("downloadFile", "打开文件失败,文件不存在", err)
+		ylog.Errorf("downloadFile", "打开文件失败,文件不存在: %v", err)
 		common.CreateResponse(c, common.FileIsNotExists, nil)
 		return
 	}
 	defer file.Close()
 
-	// 获取文件信息
-	fileInfo, _ := file.Stat()
+	fileInfo, err := file.Stat()
+	if err != nil || fileInfo.IsDir() {
+		common.BadRequest(c, "invalid filename")
+		return
+	}
 	fileSize := int(fileInfo.Size())
 
-	// 设置HEADER信息
-	c.Writer.Header().Set("Content-Disposition", "attachment; filename="+fileName)
+	c.Writer.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(fileInfo.Name()))
 	c.Writer.Header().Set("Content-Type", "application/octet-stream")
 	c.Writer.Header().Set("Content-Length", strconv.FormatInt(int64(fileSize), 10))
 
-	// 流式传输文件数据
 	c.Stream(func(w io.Writer) bool {
 		buf := make([]byte, 1024)
 		for {
@@ -442,7 +435,7 @@ func downloadFile(c *gin.Context) {
 			if n == 0 {
 				break
 			}
-			w.Write(buf[:n])
+			_, _ = w.Write(buf[:n])
 		}
 		return false
 	})
@@ -452,18 +445,30 @@ func downloadFile(c *gin.Context) {
 // 获取目录文件列表
 func listFiles(c *gin.Context) {
 
-	dirPath := c.Query("dir")
-
-	// 检查目录路径
-	//if !strings.HasPrefix(dirPath, common.UploadDir) {
-	//	c.AbortWithStatus(403)
-	//	return
-	//}
-
-	dirPath = common.GetDownloadDir() + dirPath
+	dirPath, err := common.ResolvePathWithinBase(common.GetDownloadDir(), c.Query("dir"))
+	if err != nil {
+		common.BadRequest(c, "invalid dir")
+		return
+	}
 	ylog.Infof("listFiles func:", "dirPath:%s", dirPath)
 
-	// 读取目录
+	info, err := os.Stat(dirPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			ylog.Errorf("目录不存在", "err:%v", err)
+			common.CreateResponse(c, common.DirISNotExists, "Directory does not exist")
+		} else {
+			ylog.Errorf("读取目录失败", "err:%v", err)
+			common.CreateResponse(c, common.ReadDirFailed, "Failed to read the directory")
+		}
+		c.AbortWithStatus(500)
+		return
+	}
+	if !info.IsDir() {
+		common.BadRequest(c, "dir must be a directory")
+		return
+	}
+
 	files, err := ioutil.ReadDir(dirPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -477,12 +482,10 @@ func listFiles(c *gin.Context) {
 		return
 	}
 
-	// 按照文件时间倒序排列
 	sort.SliceStable(files, func(i, j int) bool {
 		return files[j].ModTime().Before(files[i].ModTime())
 	})
 
-	// 构建返回结果（只返回文件，过滤掉目录）
 	var fileList []map[string]interface{}
 	for _, fileInfo := range files {
 		if fileInfo.IsDir() {
@@ -495,7 +498,6 @@ func listFiles(c *gin.Context) {
 		fileList = append(fileList, fileEntry)
 	}
 
-	// 返回文件列表
 	common.CreateResponse(c, common.SuccessCode, fileList)
 
 }
@@ -509,11 +511,13 @@ func getFileInfo(c *gin.Context) {
 		return
 	}
 
-	// 检查文件路径
-	filePath := common.GetDownloadDir() + fileName
+	filePath, err := common.ResolvePathWithinBase(common.GetDownloadDir(), fileName)
+	if err != nil {
+		common.BadRequest(c, "invalid filename")
+		return
+	}
 	ylog.Infof("fileInfo func:", "filePath:%s", filePath)
 
-	// 获取文件信息
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -526,8 +530,11 @@ func getFileInfo(c *gin.Context) {
 		c.AbortWithStatus(500)
 		return
 	}
+	if fileInfo.IsDir() {
+		common.BadRequest(c, "invalid filename")
+		return
+	}
 
-	// 打开文件
 	file, err := os.Open(filePath)
 	if err != nil {
 		ylog.Errorf("打开文件失败", "err:%v", err)
@@ -537,32 +544,25 @@ func getFileInfo(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// 创建一个MD5 hash
 	hash := md5.New()
-
-	// 将文件的内容复制到hash中
 	if _, err := io.Copy(hash, file); err != nil {
 		c.AbortWithStatus(500)
 		return
 	}
 
-	// 获取MD5 hash的值
 	md5Hash := hex.EncodeToString(hash.Sum(nil))
 
-	// 构建返回结果
 	fileEntry := make(map[string]interface{})
 	fileEntry["fileName"] = fileInfo.Name()
 	fileEntry["lastModified"] = fileInfo.ModTime().Format("2006-01-02 15:04:05")
 	fileEntry["size"] = utils.FormatSize(fileInfo.Size())
 	fileEntry["md5"] = md5Hash
-	// 对比文件 MD5 值
 	if fileMD5 != "" && fileMD5 != md5Hash {
 		fileEntry["md5Match"] = false
 	} else {
 		fileEntry["md5Match"] = true
 	}
 
-	// 返回文件信息
 	common.CreateResponse(c, common.SuccessCode, fileEntry)
 }
 

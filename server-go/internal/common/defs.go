@@ -54,6 +54,9 @@ var (
 	McpEnable    bool   // 是否启用 MCP Server
 	McpAuthToken string // MCP 认证 Token（可选，为空则不验证）
 
+	ShareEnable          bool // 是否启用分享功能
+	ShareAnonymousAccess bool // 是否允许匿名访问分享链接（false 时需要登录）
+
 	OpenAPIEnable bool // 是否启用 Open API（AK/SK 签名认证）
 
 	PProfEnable bool

@@ -10,6 +10,7 @@ import { currentUser as queryCurrentUser } from './services/ant-design-pro/api';
 
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
+const changePasswordPath = '/user/change-password';
 
 /** 获取用户信息比较慢的时候会展示一个 loading */
 export const initialStateConfig = {
@@ -34,6 +35,13 @@ export async function getInitialState(): Promise<{
     }
     return undefined;
   };
+  // 如果是分享公开页，不需要获取用户信息
+  if (history.location.pathname.startsWith('/s/')) {
+    return {
+      fetchUserInfo,
+      settings: defaultSettings,
+    };
+  }
   // 如果不是登录页面，执行
   if (history.location.pathname !== loginPath) {
     const currentUser = await fetchUserInfo();
@@ -60,9 +68,21 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     footerRender: () => <Footer />,
     onPageChange: () => {
       const { location } = history;
-      // 如果没有登录，重定向到 login
-      if (!initialState?.currentUser && location.pathname !== loginPath) {
+      // 分享公开页不需要登录
+      if (location.pathname.startsWith('/s/')) {
+        return;
+      }
+      const currentUser = initialState?.currentUser;
+      if (!currentUser && location.pathname !== loginPath) {
         history.push(loginPath);
+        return;
+      }
+      if (currentUser?.mustChangePassword && location.pathname !== changePasswordPath) {
+        history.push(changePasswordPath);
+        return;
+      }
+      if (currentUser && !currentUser.mustChangePassword && location.pathname === changePasswordPath) {
+        history.push('/');
       }
     },
     links: isDev

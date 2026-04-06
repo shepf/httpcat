@@ -1,9 +1,6 @@
 package common
 
 import (
-	"crypto/sha1"
-	"fmt"
-	"io"
 	"log"
 	"sync"
 	"time"
@@ -189,17 +186,17 @@ func InitializeUserTable(db *gorm.DB) {
 	}
 
 	var count int64
-	db.Model(&User{}).Where("username = ?", "admin").Count(&count)
+	db.Model(&User{}).Where("username = ?", DefaultAdminUsername).Count(&count)
 	if count == 0 {
-		t := sha1.New()
-		password := "admin"
-		salt := "sss"
-		_, err := io.WriteString(t, password+salt)
-		hashString := fmt.Sprintf("%x", t.Sum(nil))
+		hashString, err := HashPassword(DefaultAdminPassword)
+		if err != nil {
+			ylog.Errorf("initDB", "hash default admin password failed, err:%v", err)
+			return
+		}
 
 		// 插入默认记录
 		user := User{
-			Username:           "admin",
+			Username:           DefaultAdminUsername,
 			Avatar:             "https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png",
 			UserID:             "00000001",
 			Email:              "antdesign@alipay.com",
@@ -215,11 +212,11 @@ func InitializeUserTable(db *gorm.DB) {
 			City:               []byte("{\"label\":\"杭州市\",\"key\":\"330100\"}"),
 			Address:            "西湖区工专路 77 号",
 			Phone:              "0752-268888888",
-			Password:           hashString, // 根据具体逻辑设置密码
+			Password:           hashString,
 			PasswordUpdateTime: 0,
-			Salt:               salt, // 根据具体逻辑设置盐值
+			Salt:               "",
 			Level:              0,
-			Config:             nil, // 根据具体逻辑设置配置信息
+			Config:             nil,
 		}
 		err = db.Create(&user).Error
 		if err != nil {

@@ -163,53 +163,7 @@ func verifyConfirmToken(token, filename string) bool {
 
 // validateAndResolvePath 安全地验证和解析路径（防止路径遍历和符号链接攻击）
 func validateAndResolvePath(baseDir, userPath string) (string, error) {
-	// 清理用户输入
-	cleanPath := filepath.Clean(userPath)
-
-	// 检查是否尝试路径遍历
-	if strings.HasPrefix(cleanPath, "..") || filepath.IsAbs(cleanPath) {
-		return "", fmt.Errorf("invalid path: path traversal detected")
-	}
-
-	// 检查是否包含危险字符
-	if strings.Contains(userPath, "..") {
-		return "", fmt.Errorf("invalid path: contains '..'")
-	}
-
-	// 拼接路径
-	fullPath := filepath.Join(baseDir, cleanPath)
-
-	// 确保拼接后的路径仍在基础目录内
-	if !strings.HasPrefix(fullPath, baseDir) {
-		return "", fmt.Errorf("invalid path: outside base directory")
-	}
-
-	// 检查路径是否存在
-	info, err := os.Lstat(fullPath) // 使用 Lstat 不跟随符号链接
-	if err != nil {
-		if os.IsNotExist(err) {
-			// 路径不存在，但格式有效（用于创建新文件）
-			return fullPath, nil
-		}
-		return "", err
-	}
-
-	// 如果是符号链接，解析真实路径并验证
-	if info.Mode()&os.ModeSymlink != 0 {
-		realPath, err := filepath.EvalSymlinks(fullPath)
-		if err != nil {
-			return "", fmt.Errorf("failed to resolve symlink: %v", err)
-		}
-
-		// 确保符号链接指向的真实路径仍在基础目录内
-		if !strings.HasPrefix(realPath, baseDir) {
-			return "", fmt.Errorf("invalid path: symlink points outside base directory")
-		}
-
-		return realPath, nil
-	}
-
-	return fullPath, nil
+	return common.ResolvePathWithinBase(baseDir, userPath)
 }
 
 // registerTools 注册所有 Tools
@@ -728,12 +682,10 @@ func handleUploadFile(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid base64 content: %v", err)), nil
 	}
 
-	// 验证文件名安全（只允许简单文件名，不允许路径）
-	if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
-		return mcp.NewToolResultError("Invalid filename: path traversal detected"), nil
+	filename, err = common.NormalizeSafeFileName(filename)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid filename: %v", err)), nil
 	}
-
-	// 额外检查：文件名不能以 . 开头（防止隐藏文件）
 	if strings.HasPrefix(filename, ".") {
 		return mcp.NewToolResultError("Invalid filename: hidden files not allowed"), nil
 	}
@@ -776,15 +728,14 @@ func handleUploadFile(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 	}
 
 	// 确保上传目录存在
-	if _, err := os.Stat(common.GetUploadDir()); os.IsNotExist(err) {
-		err := os.MkdirAll(common.GetUploadDir(), 0755)
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to create upload directory: %v", err)), nil
-		}
+	if err := os.MkdirAll(common.GetUploadDir(), 0755); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to create upload directory: %v", err)), nil
 	}
 
-	// 构建文件路径（使用安全的路径拼接）
-	filePath := filepath.Join(common.GetUploadDir(), filepath.Base(filename))
+	filePath, err := validateAndResolvePath(common.GetUploadDir(), filename)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid filename: %v", err)), nil
+	}
 
 	// 写入文件
 	err = os.WriteFile(filePath, content, 0644)
@@ -865,9 +816,9 @@ func handleUploadImage(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid base64 content: %v", err)), nil
 	}
 
-	// 验证文件名安全
-	if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
-		return mcp.NewToolResultError("Invalid filename: path traversal detected"), nil
+	filename, err = common.NormalizeSafeFileName(filename)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid filename: %v", err)), nil
 	}
 	if strings.HasPrefix(filename, ".") {
 		return mcp.NewToolResultError("Invalid filename: hidden files not allowed"), nil
@@ -908,14 +859,18 @@ func handleUploadImage(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 		}
 	}
 
-	// 确保 images 目录存在
-	imagesDir := filepath.Join(common.GetUploadDir(), "images")
+	imagesDir, err := validateAndResolvePath(common.GetUploadDir(), "images")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid images directory: %v", err)), nil
+	}
 	if err := os.MkdirAll(imagesDir, 0755); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to create images directory: %v", err)), nil
 	}
 
-	// 检查文件是否已存在
-	filePath := filepath.Join(imagesDir, filepath.Base(filename))
+	filePath, err := validateAndResolvePath(imagesDir, filename)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid filename: %v", err)), nil
+	}
 	if _, err := os.Stat(filePath); err == nil {
 		return mcp.NewToolResultError("File already exists"), nil
 	}
@@ -926,7 +881,11 @@ func handleUploadImage(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 	}
 
 	// 生成缩略图
-	thumbFilePath := filepath.Join(imagesDir, "thumb_"+filepath.Base(filename))
+	thumbFilePath, err := validateAndResolvePath(imagesDir, "thumb_"+filename)
+	if err != nil {
+		os.Remove(filePath)
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid thumbnail filename: %v", err)), nil
+	}
 	thumbImage, err := imaging.Open(filePath)
 	if err != nil {
 		os.Remove(filePath) // 清理无效文件
@@ -954,7 +913,7 @@ func handleUploadImage(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 			image := models.UploadImageModel{
 				FileUUID:      fileUUID,
 				Size:          fileInfo.Size(),
-				FileName:      filepath.Base(filename),
+				FileName:      filename,
 				FilePath:      filePath,
 				ThumbFilePath: thumbFilePath,
 				FileMD5:       fileMD5,
@@ -982,11 +941,11 @@ func handleUploadImage(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 
 	uploadResult := UploadImageResult{
 		FileUUID: fileUUID,
-		Filename: filepath.Base(filename),
+		Filename: filename,
 		Size:     utils.FormatSize(fileInfo.Size()),
 		MD5:      fileMD5,
-		URL:      "/api/v1/imageManage/download?filename=" + filepath.Base(filename),
-		ThumbURL: "/api/v1/imageManage/download?filename=thumb_" + filepath.Base(filename),
+		URL:      "/api/v1/imageManage/download?filename=" + filename,
+		ThumbURL: "/api/v1/imageManage/download?filename=thumb_" + filename,
 	}
 
 	resultData, _ := json.MarshalIndent(uploadResult, "", "  ")

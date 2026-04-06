@@ -10,11 +10,13 @@ HttpCat 是一个基于 HTTP 的文件传输服务，旨在提供简单、高效
 
 - 🚀 **简单高效** - 易于部署，无需外部依赖
 - 🎨 **现代化界面** - 基于 React 的美观管理界面
+- 🔗 **文件分享** - 通过链接分享文件，支持有效期、下载次数限制和提取码保护
 - 🤖 **MCP 支持** - AI 助手（Claude、Cursor、CodeBuddy）可直接管理你的文件
 - 🐳 **Docker 就绪** - 一键 Docker 部署
-- 🔐 **安全可靠** - 基于 Token 的上传认证
+- 🔐 **安全可靠** - bcrypt 密码加密、首次强制改密、路径安全防护
 - 🔑 **Open API** - AK/SK 签名认证，脚本/CI/AI 可直接调用所有 API
 - 📊 **统计功能** - 详细的上传下载历史记录
+- ⚙️ **Web 配置管理** - 在浏览器中直接修改服务配置，支持热更新和一键重启
 
 ## 📁 项目结构
 
@@ -42,9 +44,12 @@ httpcat/
 │   │   ├── pages/              # 页面
 │   │   │   ├── Welcome.tsx     # 首页（快捷上传）
 │   │   │   ├── FileManage/     # 文件管理（列表、图片管理）
+│   │   │   ├── ShareManage/    # 分享管理
+│   │   │   ├── SharePage/      # 分享访问页面（匿名可访问）
 │   │   │   ├── sysInfo/        # 系统信息
+│   │   │   ├── SysConfig/      # 系统配置管理
 │   │   │   ├── uploadTokenManage/  # Token 管理
-│   │   │   └── user/           # 登录页
+│   │   │   └── user/           # 登录、修改密码
 │   │   ├── services/           # API 接口定义
 │   │   └── locales/            # 国际化（中文/英文）
 │   ├── config/                 # UmiJS 路由与构建配置
@@ -136,7 +141,7 @@ NODE_OPTIONS=--openssl-legacy-provider npm run start:dev
 | 用户名 | `admin` |
 | 密码 | `admin` |
 
-> ⚠️ **安全提示**: 首次登录后请立即修改默认密码！
+> ⚠️ **安全提示**: 首次登录后会强制要求修改默认密码，修改前无法使用任何功能。
 
 ## 🎉 生产环境安装
 
@@ -144,7 +149,7 @@ NODE_OPTIONS=--openssl-legacy-provider npm run start:dev
 
 ```bash
 # 下载并解压
-httpcat_version="v0.3.0"
+httpcat_version="v0.4.0"
 tar -zxvf httpcat_${httpcat_version}_linux-amd64.tar.gz
 cd httpcat_${httpcat_version}_linux-amd64
 
@@ -213,6 +218,15 @@ HttpCat 支持 MCP 协议，让 AI 助手可以直接管理你的文件服务器
 
 ### 快速配置
 
+> ⚠️ **v0.4.0 起，MCP 开启时必须配置 `auth_token`**，在 `svr.yml` 中设置：
+>
+> ```yaml
+> server:
+>   mcp:
+>     enable: true
+>     auth_token: "你的安全密码"
+> ```
+
 在你的 MCP 客户端配置（Claude Desktop、Cursor、CodeBuddy 等）中添加：
 
 ```json
@@ -220,7 +234,10 @@ HttpCat 支持 MCP 协议，让 AI 助手可以直接管理你的文件服务器
   "mcpServers": {
     "httpcat": {
       "type": "sse",
-      "url": "http://your-server:8888/mcp/sse"
+      "url": "http://your-server:8888/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer 你的安全密码"
+      }
     }
   }
 }
@@ -241,6 +258,25 @@ HttpCat 支持 MCP 协议，让 AI 助手可以直接管理你的文件服务器
 | `verify_file_md5` | 验证文件 MD5 完整性 |
 
 📖 详细 MCP 使用指南请查看 [docs/MCP_USAGE.md](docs/MCP_USAGE.md)
+
+## 🧠 AI Skill（Agent Skills 规范）
+
+HttpCat 提供了符合 [Agent Skills 规范](https://agentskills.io/) 的 Skill 包，可安装到 Claude Code / CodeBuddy / Cursor 等 AI IDE 中，让 AI 助手通过自然语言管理你的文件服务器。
+
+```bash
+# 安装到 Claude Code
+ln -s /path/to/httpcat/httpcat-skill ~/.claude/skills/httpcat
+
+# 安装到 CodeBuddy
+ln -s /path/to/httpcat/httpcat-skill .codebuddy/skills/httpcat
+
+# 安装到 Cursor
+ln -s /path/to/httpcat/httpcat-skill .cursor/skills/httpcat
+```
+
+安装后即可在 AI 对话中说 "列出 httpcat 上的文件"、"上传文件到服务器"、"查看磁盘使用情况" 等。
+
+📖 详细说明请查看 [httpcat-skill/README.md](httpcat-skill/README.md)
 
 ## 🤝 OpenClaw + httpcat 联动部署
 

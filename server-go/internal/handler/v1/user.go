@@ -1,12 +1,10 @@
 package v1
 
 import (
-	"crypto/sha1"
 	"encoding/base64"
-	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"httpcat/internal/common"
@@ -36,9 +34,9 @@ func UserLogin(c *gin.Context) {
 		return
 	}
 
-	if user.Username == "admin" {
+	if user.Username == common.DefaultAdminUsername {
 		//使用jwt token
-		_, err := midware.CheckUser(user.Username, user.Password)
+		userInfo, err := midware.CheckUser(user.Username, user.Password)
 		if err != nil {
 			common.Unauthorized(c, err.Error())
 			return
@@ -52,12 +50,12 @@ func UserLogin(c *gin.Context) {
 		c.JSON(
 			http.StatusOK,
 			bson.M{"token": token,
-				"currentAuthority": "access", "type": "account", "status": "ok"},
+				"currentAuthority": "access", "type": "account", "status": "ok", "mustChangePassword": common.MustChangePassword(userInfo)},
 		)
 		return
 	}
 
-	_, err = midware.CheckUser(user.Username, user.Password)
+	userInfo, err := midware.CheckUser(user.Username, user.Password)
 	//密码校验
 	if err != nil {
 		common.Unauthorized(c, "verify password failed")
@@ -65,10 +63,7 @@ func UserLogin(c *gin.Context) {
 		token := midware.GeneralSession()
 		//todo token存储到reids
 		//err = infra.Grds.Set(context.Background(), token, user.Username, time.Duration(login.GetLoginSessionTimeoutMinute())*time.Minute).Err()
-		if err != nil {
-			ylog.Errorf("UserLogin", "Set %s redis error %s", user.Username, err.Error())
-		}
-		common.CreateResponse(c, common.SuccessCode, bson.M{"token": token})
+		common.CreateResponse(c, common.SuccessCode, bson.M{"token": token, "mustChangePassword": common.MustChangePassword(userInfo)})
 	}
 
 	ylog.Infof("UserLogin", "UserLogin function completed")
@@ -78,8 +73,8 @@ func UserLogin(c *gin.Context) {
 func ChangePasswd(c *gin.Context) {
 
 	var params struct {
-		OldPassword string `form:"oldPassword" binding:"required"`
-		NewPassword string `form:"newPassword" binding:"required"`
+		OldPassword string `form:"oldPassword" json:"oldPassword" binding:"required"`
+		NewPassword string `form:"newPassword" json:"newPassword" binding:"required"`
 	}
 
 	if err := c.ShouldBind(&params); err != nil {
@@ -105,19 +100,22 @@ func ChangePasswd(c *gin.Context) {
 
 	db.Where("username = ?", username.(string)).First(&user)
 
-	// 验证旧密码是否正确
-	t := sha1.New()
-	_, err = io.WriteString(t, params.OldPassword+user.Salt)
-	oldPasswordHash := fmt.Sprintf("%x", t.Sum(nil))
-	if err != nil || oldPasswordHash != user.Password {
+	valid, _, err := common.VerifyPassword(&user, params.OldPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify old password"})
+		return
+	}
+	if !valid {
 		common.Unauthorized(c, "Incorrect old password")
 		return
 	}
 
-	// 根据具体的逻辑，生成新密码的哈希值和盐值
-	t = sha1.New()
-	_, err = io.WriteString(t, params.NewPassword+user.Salt)
-	newPasswordHash := fmt.Sprintf("%x", t.Sum(nil))
+	newPassword := strings.TrimSpace(params.NewPassword)
+	if newPassword == "" {
+		common.BadRequest(c, "新密码不能为空")
+		return
+	}
+	newPasswordHash, err := common.HashPassword(newPassword)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate new password hash"})
 		return
@@ -125,10 +123,19 @@ func ChangePasswd(c *gin.Context) {
 
 	// 更新用户的密码信息
 	user.Password = newPasswordHash
+	user.Salt = ""
 	user.PasswordUpdateTime = time.Now().Unix()
 
 	// 保存更新后的用户信息到数据库
-	db.Save(&user)
+	if err := db.Model(&user).Updates(map[string]interface{}{
+		"password":             user.Password,
+		"salt":                 user.Salt,
+		"password_update_time": user.PasswordUpdateTime,
+	}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save new password"})
+		return
+	}
+	common.UpdateUserPasswordCache(user.Username, user.Password, user.Salt, user.PasswordUpdateTime)
 
 	// 返回成功响应
 	common.CreateResponse(c, common.SuccessCode, "Password changed successfully")
@@ -136,20 +143,21 @@ func ChangePasswd(c *gin.Context) {
 }
 
 type UserInfoVO struct {
-	ID          uint   `json:"id"`
-	Username    string `json:"name"`
-	Avatar      string `json:"avatar"`
-	UserID      string `json:"userid"`
-	Email       string `json:"email"`
-	Signature   string `json:"signature"`
-	Title       string `json:"title"`
-	Group       string `json:"group"`
-	NotifyCount int    `json:"notifyCount"`
-	UnreadCount int    `json:"unreadCount"`
-	Country     string `json:"country"`
-	Address     string `json:"address"`
-	Access      string `json:"access"`
-	Phone       string `json:"phone"`
+	ID                 uint   `json:"id"`
+	Username           string `json:"name"`
+	Avatar             string `json:"avatar"`
+	UserID             string `json:"userid"`
+	Email              string `json:"email"`
+	Signature          string `json:"signature"`
+	Title              string `json:"title"`
+	Group              string `json:"group"`
+	NotifyCount        int    `json:"notifyCount"`
+	UnreadCount        int    `json:"unreadCount"`
+	Country            string `json:"country"`
+	Address            string `json:"address"`
+	Access             string `json:"access"`
+	Phone              string `json:"phone"`
+	MustChangePassword bool   `json:"mustChangePassword"`
 
 	Level int `json:"level"`
 }
@@ -167,21 +175,22 @@ func UserInfo(c *gin.Context) {
 
 	// 构建包含需要保留字段的新结构体
 	info := UserInfoVO{
-		ID:          user.ID,
-		Username:    user.Username,
-		Avatar:      user.Avatar,
-		UserID:      user.UserID,
-		Email:       user.Email,
-		Signature:   user.Signature,
-		Title:       user.Title,
-		Group:       user.Group,
-		NotifyCount: user.NotifyCount,
-		UnreadCount: user.UnreadCount,
-		Country:     user.Country,
-		Address:     user.Address,
-		Access:      "admin",
-		Phone:       user.Phone,
-		Level:       user.Level,
+		ID:                 user.ID,
+		Username:           user.Username,
+		Avatar:             user.Avatar,
+		UserID:             user.UserID,
+		Email:              user.Email,
+		Signature:          user.Signature,
+		Title:              user.Title,
+		Group:              user.Group,
+		NotifyCount:        user.NotifyCount,
+		UnreadCount:        user.UnreadCount,
+		Country:            user.Country,
+		Address:            user.Address,
+		Access:             "admin",
+		Phone:              user.Phone,
+		MustChangePassword: common.MustChangePassword(user),
+		Level:              user.Level,
 	}
 
 	common.CreateResponse(c, common.SuccessCode, info)

@@ -8,6 +8,7 @@ export default {
   'menu.admin.sys-config': 'System-Config',
   'menu.file_manage': 'File-Manage',
   'menu.file_manage.image-manage-page': 'Image-Manage',
+  'menu.file_manage.share-manage': 'Share-Manage',
   'menu.login': 'Login',
   'menu.register': 'Register',
   'menu.register-result': 'Register Result',
