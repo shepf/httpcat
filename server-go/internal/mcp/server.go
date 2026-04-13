@@ -269,6 +269,58 @@ func registerTools(s *mcpserver.MCPServer) {
 		),
 		handleVerifyFileMD5,
 	)
+
+	// 11. 创建文件夹（v0.5.0+）
+	s.AddTool(
+		mcp.NewTool("create_folder",
+			mcp.WithDescription("在上传目录中创建新文件夹"),
+			mcp.WithString("name", mcp.Required(), mcp.Description("文件夹名称")),
+			mcp.WithString("dir", mcp.Description("父目录路径，默认为空表示根目录")),
+		),
+		handleCreateFolder,
+	)
+
+	// 12. 重命名文件或文件夹（v0.5.0+）
+	s.AddTool(
+		mcp.NewTool("rename_file",
+			mcp.WithDescription("重命名文件或文件夹"),
+			mcp.WithString("old_name", mcp.Required(), mcp.Description("原文件/文件夹名称")),
+			mcp.WithString("new_name", mcp.Required(), mcp.Description("新文件/文件夹名称")),
+			mcp.WithString("dir", mcp.Description("所在目录路径，默认为空表示根目录")),
+		),
+		handleRenameFile,
+	)
+
+	// 13. 批量删除文件/文件夹（v0.5.0+）
+	s.AddTool(
+		mcp.NewTool("batch_delete_files",
+			mcp.WithDescription("批量删除文件或空文件夹（文件夹必须为空才能删除）"),
+			mcp.WithString("files", mcp.Required(), mcp.Description("要删除的文件名列表，JSON 数组格式，如 [\"file1.txt\",\"file2.txt\"]")),
+			mcp.WithString("dir", mcp.Description("所在目录路径，默认为空表示根目录")),
+		),
+		handleBatchDeleteFiles,
+	)
+
+	// 14. 文件总览统计（v0.5.0+）
+	s.AddTool(
+		mcp.NewTool("get_file_overview",
+			mcp.WithDescription("获取文件总览统计信息：文件总数、目录数、总大小"),
+		),
+		handleGetFileOverview,
+	)
+
+	// 15. 下载历史日志（v0.5.0+）
+	s.AddTool(
+		mcp.NewTool("get_download_history",
+			mcp.WithDescription("获取文件下载历史记录，支持分页和筛选"),
+			mcp.WithNumber("page", mcp.Description("页码，默认1")),
+			mcp.WithNumber("page_size", mcp.Description("每页数量，默认20")),
+			mcp.WithString("filename", mcp.Description("按文件名筛选")),
+			mcp.WithString("file_md5", mcp.Description("按文件MD5筛选")),
+			mcp.WithString("ip", mcp.Description("按IP地址筛选")),
+		),
+		handleGetDownloadHistory,
+	)
 }
 
 // registerResources 注册所有 Resources
@@ -1157,4 +1209,375 @@ func getDiskUsage(path string) (map[string]interface{}, error) {
 		"total_size":  utils.FormatSize(totalSize),
 		"total_bytes": totalSize,
 	}, nil
+}
+
+// formatBytes 格式化字节数为人类可读格式
+func formatBytes(bytes int64) string {
+	const (
+		KB = 1024
+		MB = 1024 * KB
+		GB = 1024 * MB
+		TB = 1024 * GB
+	)
+	switch {
+	case bytes >= int64(TB):
+		return fmt.Sprintf("%.2f TB", float64(bytes)/float64(TB))
+	case bytes >= int64(GB):
+		return fmt.Sprintf("%.2f GB", float64(bytes)/float64(GB))
+	case bytes >= int64(MB):
+		return fmt.Sprintf("%.2f MB", float64(bytes)/float64(MB))
+	case bytes >= int64(KB):
+		return fmt.Sprintf("%.2f KB", float64(bytes)/float64(KB))
+	}
+	return fmt.Sprintf("%d B", bytes)
+}
+
+// ==================== v0.5.0 New Tool Handlers ====================
+
+// handleCreateFolder 处理创建文件夹
+func handleCreateFolder(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args := request.GetArguments()
+
+	name, ok := args["name"].(string)
+	if !ok || name == "" {
+		return mcp.NewToolResultError("name is required"), nil
+	}
+
+	// 安全校验文件夹名
+	safeName, err := common.NormalizeSafeFileName(name)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid folder name: %v", err)), nil
+	}
+	if strings.HasPrefix(safeName, ".") {
+		return mcp.NewToolResultError("Invalid folder name: hidden folders not allowed"), nil
+	}
+
+	// 解析父目录
+	basePath := common.GetDownloadDir()
+	if dirVal, ok := args["dir"].(string); ok && dirVal != "" {
+		basePath, err = validateAndResolvePath(common.GetDownloadDir(), dirVal)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Invalid directory path: %v", err)), nil
+		}
+	}
+
+	folderPath, err := validateAndResolvePath(basePath, safeName)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid folder path: %v", err)), nil
+	}
+
+	// 检查是否已存在
+	if _, err := os.Stat(folderPath); err == nil {
+		return mcp.NewToolResultError("Folder already exists"), nil
+	}
+
+	if err := os.MkdirAll(folderPath, 0755); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to create folder: %v", err)), nil
+	}
+
+	ylog.Infof("MCP", "Folder created via MCP: %s", folderPath)
+
+	type CreateFolderResult struct {
+		Name    string `json:"name"`
+		Path    string `json:"path"`
+		Message string `json:"message"`
+	}
+
+	result := CreateFolderResult{
+		Name:    safeName,
+		Path:    folderPath,
+		Message: "Folder created successfully",
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+// handleRenameFile 处理重命名文件或文件夹
+func handleRenameFile(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args := request.GetArguments()
+
+	oldName, ok := args["old_name"].(string)
+	if !ok || oldName == "" {
+		return mcp.NewToolResultError("old_name is required"), nil
+	}
+
+	newName, ok := args["new_name"].(string)
+	if !ok || newName == "" {
+		return mcp.NewToolResultError("new_name is required"), nil
+	}
+
+	// 安全校验
+	safeOldName, err := common.NormalizeSafeFileName(oldName)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid old name: %v", err)), nil
+	}
+	safeNewName, err := common.NormalizeSafeFileName(newName)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid new name: %v", err)), nil
+	}
+	if strings.HasPrefix(safeNewName, ".") {
+		return mcp.NewToolResultError("Invalid new name: hidden files not allowed"), nil
+	}
+
+	// 解析目录
+	basePath := common.GetDownloadDir()
+	if dirVal, ok := args["dir"].(string); ok && dirVal != "" {
+		basePath, err = validateAndResolvePath(common.GetDownloadDir(), dirVal)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Invalid directory path: %v", err)), nil
+		}
+	}
+
+	oldPath, err := validateAndResolvePath(basePath, safeOldName)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid old path: %v", err)), nil
+	}
+	newPath, err := validateAndResolvePath(basePath, safeNewName)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid new path: %v", err)), nil
+	}
+
+	// 检查源文件是否存在
+	if _, err := os.Stat(oldPath); os.IsNotExist(err) {
+		return mcp.NewToolResultError("Source file not found"), nil
+	}
+
+	// 检查目标是否已存在
+	if _, err := os.Stat(newPath); err == nil {
+		return mcp.NewToolResultError("Target name already exists"), nil
+	}
+
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to rename: %v", err)), nil
+	}
+
+	ylog.Infof("MCP", "Renamed via MCP: %s -> %s", oldPath, newPath)
+
+	type RenameResult struct {
+		OldName string `json:"old_name"`
+		NewName string `json:"new_name"`
+		Message string `json:"message"`
+	}
+
+	result := RenameResult{
+		OldName: safeOldName,
+		NewName: safeNewName,
+		Message: "Renamed successfully",
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+// handleBatchDeleteFiles 处理批量删除文件
+func handleBatchDeleteFiles(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args := request.GetArguments()
+
+	filesStr, ok := args["files"].(string)
+	if !ok || filesStr == "" {
+		return mcp.NewToolResultError("files is required (JSON array of filenames)"), nil
+	}
+
+	// 解析 JSON 数组
+	var files []string
+	if err := json.Unmarshal([]byte(filesStr), &files); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid files format, expected JSON array: %v", err)), nil
+	}
+
+	if len(files) == 0 {
+		return mcp.NewToolResultError("files list is empty"), nil
+	}
+
+	// 解析目录
+	basePath := common.GetDownloadDir()
+	if dirVal, ok := args["dir"].(string); ok && dirVal != "" {
+		var err error
+		basePath, err = validateAndResolvePath(common.GetDownloadDir(), dirVal)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Invalid directory path: %v", err)), nil
+		}
+	}
+
+	type deleteResult struct {
+		Deleted []string            `json:"deleted"`
+		Failed  []map[string]string `json:"failed"`
+	}
+
+	result := deleteResult{}
+
+	for _, fileName := range files {
+		safeName, err := common.NormalizeSafeFileName(fileName)
+		if err != nil {
+			result.Failed = append(result.Failed, map[string]string{"file": fileName, "error": "invalid filename"})
+			continue
+		}
+
+		filePath, err := validateAndResolvePath(basePath, safeName)
+		if err != nil {
+			result.Failed = append(result.Failed, map[string]string{"file": fileName, "error": "invalid path"})
+			continue
+		}
+
+		info, err := os.Stat(filePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				result.Failed = append(result.Failed, map[string]string{"file": fileName, "error": "file not found"})
+			} else {
+				result.Failed = append(result.Failed, map[string]string{"file": fileName, "error": err.Error()})
+			}
+			continue
+		}
+
+		if info.IsDir() {
+			// 删除目录需要目录为空
+			if err := os.Remove(filePath); err != nil {
+				result.Failed = append(result.Failed, map[string]string{"file": fileName, "error": "directory is not empty or cannot be removed"})
+				continue
+			}
+		} else {
+			if err := os.Remove(filePath); err != nil {
+				result.Failed = append(result.Failed, map[string]string{"file": fileName, "error": err.Error()})
+				continue
+			}
+		}
+
+		result.Deleted = append(result.Deleted, fileName)
+		ylog.Infof("MCP", "Batch delete via MCP: %s", filePath)
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+// handleGetFileOverview 处理文件总览统计
+func handleGetFileOverview(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	baseDir := common.GetDownloadDir()
+
+	var totalFiles int64
+	var totalDirs int64
+	var totalSize int64
+
+	// 递归统计
+	filepath.Walk(baseDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // 跳过无法访问的文件
+		}
+		if info.IsDir() {
+			totalDirs++
+		} else {
+			totalFiles++
+			totalSize += info.Size()
+		}
+		return nil
+	})
+
+	// 减去根目录本身
+	if totalDirs > 0 {
+		totalDirs--
+	}
+
+	type FileOverview struct {
+		TotalFiles         int64  `json:"total_files"`
+		TotalDirs          int64  `json:"total_dirs"`
+		TotalSize          int64  `json:"total_size"`
+		TotalSizeFormatted string `json:"total_size_formatted"`
+	}
+
+	overview := FileOverview{
+		TotalFiles:         totalFiles,
+		TotalDirs:          totalDirs,
+		TotalSize:          totalSize,
+		TotalSizeFormatted: formatBytes(totalSize),
+	}
+
+	data, _ := json.MarshalIndent(overview, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+// handleGetDownloadHistory 处理下载历史日志查询
+func handleGetDownloadHistory(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if !common.EnableSqlite {
+		return mcp.NewToolResultError("SQLite is not enabled"), nil
+	}
+
+	args := request.GetArguments()
+
+	page := 1
+	pageSize := 20
+	filename := ""
+	fileMD5 := ""
+	ip := ""
+
+	if v, ok := args["page"].(float64); ok {
+		page = int(v)
+	}
+	if v, ok := args["page_size"].(float64); ok {
+		pageSize = int(v)
+	}
+	if v, ok := args["filename"].(string); ok {
+		filename = v
+	}
+	if v, ok := args["file_md5"].(string); ok {
+		fileMD5 = v
+	}
+	if v, ok := args["ip"].(string); ok {
+		ip = v
+	}
+
+	db, err := common.GetDB()
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to get database: %v", err)), nil
+	}
+
+	offset := (page - 1) * pageSize
+	query := db.Model(&common.DownloadLogModel{}).Offset(offset).Limit(pageSize).Order("download_time DESC")
+	countQuery := db.Model(&common.DownloadLogModel{})
+
+	if filename != "" {
+		query = query.Where("filename LIKE ?", "%"+filename+"%")
+		countQuery = countQuery.Where("filename LIKE ?", "%"+filename+"%")
+	}
+	if fileMD5 != "" {
+		query = query.Where("file_md5 = ?", fileMD5)
+		countQuery = countQuery.Where("file_md5 = ?", fileMD5)
+	}
+	if ip != "" {
+		query = query.Where("ip = ?", ip)
+		countQuery = countQuery.Where("ip = ?", ip)
+	}
+
+	var logs []common.DownloadLogModel
+	if err := query.Find(&logs).Error; err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to query download history: %v", err)), nil
+	}
+
+	var total int64
+	if err := countQuery.Count(&total).Error; err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to count download history: %v", err)), nil
+	}
+
+	// 转换为 map 返回
+	var logList []map[string]interface{}
+	for _, log := range logs {
+		logList = append(logList, map[string]interface{}{
+			"id":            log.ID,
+			"ip":            log.IP,
+			"appkey":        log.AppKey,
+			"download_time": log.DownloadTime,
+			"filename":      log.FileName,
+			"file_size":     log.FileSize,
+			"file_md5":      log.FileMD5,
+		})
+	}
+
+	response := map[string]interface{}{
+		"list":      logList,
+		"page":      page,
+		"page_size": pageSize,
+		"total":     total,
+	}
+
+	data, _ := json.MarshalIndent(response, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
 }

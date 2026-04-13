@@ -149,7 +149,7 @@ NODE_OPTIONS=--openssl-legacy-provider npm run start:dev
 
 ```bash
 # 下载并解压
-httpcat_version="v0.4.0"
+httpcat_version="v0.5.0"
 tar -zxvf httpcat_${httpcat_version}_linux-amd64.tar.gz
 cd httpcat_${httpcat_version}_linux-amd64
 
@@ -365,6 +365,9 @@ Signature = HMAC-SHA256(
 | `/api/v1/file/uploadHistoryLogs` | DELETE | 删除上传历史记录 |
 | `/api/v1/file/upload` | POST | 上传文件（白名单接口，需 UploadToken 头，详见[上传流程](#7-aksk-场景下上传文件完整流程)） |
 | `/api/v1/file/download` | GET | 下载文件（白名单，无需认证） |
+| `/api/v1/file/delete` | POST | 批量删除文件/文件夹（v0.5.0+） |
+| `/api/v1/file/mkdir` | POST | 创建文件夹（v0.5.0+） |
+| `/api/v1/file/rename` | POST | 重命名文件/文件夹（v0.5.0+） |
 
 **图片管理**
 
@@ -385,6 +388,8 @@ Signature = HMAC-SHA256(
 | `/api/v1/user/getUploadAvailableSpace` | GET | 可用上传空间 |
 | `/api/v1/statistics/getUploadStatistics` | GET | 上传统计 |
 | `/api/v1/statistics/getDownloadStatistics` | GET | 下载统计 |
+| `/api/v1/statistics/getFileOverview` | GET | 文件总览统计（v0.5.0+） |
+| `/api/v1/statistics/downloadHistoryLogs` | GET | 下载历史日志（v0.5.0+） |
 
 **系统配置**
 

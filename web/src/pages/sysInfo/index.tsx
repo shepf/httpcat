@@ -1,6 +1,8 @@
 import {
   getConf,
   getDownloadStatistics,
+  getFileOverview,
+  getShareStats,
   getUploadAvailableSpace,
   getUploadStatistics,
   getVersion,
@@ -8,7 +10,16 @@ import {
 import { ProCard, ProDescriptions, Statistic, StatisticCard } from '@ant-design/pro-components';
 import { useEffect, useState } from 'react';
 import { Pie } from '@ant-design/plots';
-import { CheckCircleTwoTone, CloseCircleTwoTone, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
+import {
+  CheckCircleTwoTone,
+  CloseCircleTwoTone,
+  EyeOutlined,
+  EyeInvisibleOutlined,
+  FileOutlined,
+  FolderOutlined,
+  DatabaseOutlined,
+  ShareAltOutlined,
+} from '@ant-design/icons';
 import { Space, Spin, Tooltip } from 'antd';
 
 export default () => {
@@ -19,6 +30,8 @@ export default () => {
   const [downloadStats, setDownloadStats] = useState<API.DownloadStatistics>({});
   const [usedSpace, setUsedSpace] = useState(0);
   const [freeSpace, setFreeSpace] = useState(0);
+  const [fileOverview, setFileOverview] = useState<API.FileOverview>({});
+  const [shareStats, setShareStats] = useState<API.ShareStats>({});
   const [showBaseDir, setShowBaseDir] = useState(false);
   const [showUploadPath, setShowUploadPath] = useState(false);
   const [showDownloadPath, setShowDownloadPath] = useState(false);
@@ -28,12 +41,14 @@ export default () => {
   useEffect(() => {
     const fetchAllData = async () => {
       try {
-        const [confRes, versionRes, uploadRes, downloadRes, spaceRes] = await Promise.all([
+        const [confRes, versionRes, uploadRes, downloadRes, spaceRes, fileOverviewRes, shareStatsRes] = await Promise.all([
           getConf(),
           getVersion(),
           getUploadStatistics(),
           getDownloadStatistics(),
           getUploadAvailableSpace(),
+          getFileOverview().catch(() => ({ data: {} })),
+          getShareStats().catch(() => ({ data: {} })),
         ]);
 
         setConfData(confRes.data || {});
@@ -42,6 +57,8 @@ export default () => {
         setDownloadStats(downloadRes.data || {});
         setUsedSpace(spaceRes.usedSpace || 0);
         setFreeSpace(spaceRes.freeSpace || 0);
+        setFileOverview((fileOverviewRes as any).data || {});
+        setShareStats((shareStatsRes as any).data || {});
       } catch (error) {
         console.error('获取系统信息失败:', error);
       } finally {
@@ -244,6 +261,53 @@ export default () => {
               },
             },
           ]}
+        />
+      </ProCard>
+
+      {/* v0.5.0 新增：文件总览 + 分享统计 */}
+      <ProCard
+        title="文件 & 分享总览"
+        headerBordered
+        bordered
+        style={{ marginTop: 16 }}
+        split="vertical"
+      >
+        <StatisticCard
+          statistic={{
+            title: '文件总数',
+            value: fileOverview.totalFiles || 0,
+            suffix: '个',
+            icon: <FileOutlined style={{ fontSize: 28, color: '#1890ff' }} />,
+          }}
+        />
+        <StatisticCard
+          statistic={{
+            title: '文件夹总数',
+            value: fileOverview.totalDirs || 0,
+            suffix: '个',
+            icon: <FolderOutlined style={{ fontSize: 28, color: '#faad14' }} />,
+          }}
+        />
+        <StatisticCard
+          statistic={{
+            title: '文件总大小',
+            value: fileOverview.totalSizeFormatted || '0 B',
+            icon: <DatabaseOutlined style={{ fontSize: 28, color: '#52c41a' }} />,
+          }}
+        />
+        <StatisticCard
+          statistic={{
+            title: '分享链接',
+            value: shareStats.activeShares || 0,
+            suffix: '个有效',
+            description: (
+              <Space direction="vertical" size={0}>
+                <span>总计: {shareStats.totalShares || 0} 个</span>
+                <span>累计下载: {shareStats.totalDownloads || 0} 次</span>
+              </Space>
+            ),
+            icon: <ShareAltOutlined style={{ fontSize: 28, color: '#722ed1' }} />,
+          }}
         />
       </ProCard>
 

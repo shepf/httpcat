@@ -12,7 +12,6 @@ require (
 	github.com/libp2p/go-libp2p v0.32.1
 	github.com/libp2p/go-libp2p-pubsub v0.10.0
 	github.com/mark3labs/mcp-go v0.43.2
-	github.com/mattn/go-sqlite3 v1.14.18
 	github.com/prometheus/client_golang v1.17.0
 	github.com/rs/xid v1.5.0
 	github.com/satori/go.uuid v1.2.0
@@ -86,6 +85,7 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/marten-seemann/tcp v0.0.0-20210406111302-dfbc87cc63fd // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-sqlite3 v1.14.18 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/miekg/dns v1.1.56 // indirect
 	github.com/mikioh/tcpinfo v0.0.0-20190314235526-30a79bb1804b // indirect

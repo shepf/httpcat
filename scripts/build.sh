@@ -23,7 +23,7 @@ RELEASE_DIR="$PROJECT_ROOT/release"
 SCRIPTS_DIR="$PROJECT_ROOT/scripts"
 
 # ============ 版本信息 ============
-HTTPCAT_VERSION="${HTTPCAT_VERSION:-v0.4.0}"
+HTTPCAT_VERSION="${HTTPCAT_VERSION:-v0.5.0}"
 HTTPCAT_BUILD=$(date "+%Y%m%d%H%M")
 COMMIT_ID=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
@@ -261,7 +261,7 @@ ENV GOSUMDB=sum.golang.google.cn
 
 WORKDIR /app
 COPY server-go/go.mod server-go/go.sum ./
-RUN go mod download
+RUN for i in 1 2 3; do go mod download && break || echo "Retry \$i/3..." && sleep 3; done
 COPY server-go/ ./
 
 ARG VERSION
@@ -344,7 +344,7 @@ ENV GOSUMDB=sum.golang.google.cn
 
 WORKDIR /app
 COPY server-go/go.mod server-go/go.sum ./
-RUN go mod download
+RUN for i in 1 2 3; do go mod download && break || echo "Retry \$i/3..." && sleep 3; done
 COPY server-go/ ./
 
 ARG VERSION

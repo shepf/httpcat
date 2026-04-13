@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"httpcat/internal/common"
@@ -180,4 +182,122 @@ func getTotalDownloadCount(db *gorm.DB) int64 {
 	var count int64
 	db.Model(&common.DownloadLogModel{}).Count(&count)
 	return count
+}
+
+// GetDownloadHistoryLogs 获取下载历史记录（分页）
+func GetDownloadHistoryLogs(c *gin.Context) {
+	var params struct {
+		Current  int    `form:"current" binding:"required"`
+		PageSize int    `form:"pageSize" binding:"required"`
+		FileName string `form:"filename"`
+		FileMD5  string `form:"file_md5"`
+		IP       string `form:"ip"`
+	}
+	if err := c.ShouldBindQuery(&params); err != nil {
+		common.CreateResponse(c, common.ParamInvalidErrorCode, err.Error())
+		return
+	}
+
+	db, err := common.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	offset := (params.Current - 1) * params.PageSize
+	query := db.Model(&common.DownloadLogModel{}).Offset(offset).Limit(params.PageSize).Order("download_time DESC")
+	if params.FileName != "" {
+		query = query.Where("filename LIKE ?", "%"+params.FileName+"%")
+	}
+	if params.FileMD5 != "" {
+		query = query.Where("file_md5 = ?", params.FileMD5)
+	}
+	if params.IP != "" {
+		query = query.Where("ip = ?", params.IP)
+	}
+
+	var logs []common.DownloadLogModel
+	if err := query.Find(&logs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 查询总数
+	var total int64
+	countQuery := db.Model(&common.DownloadLogModel{})
+	if params.FileName != "" {
+		countQuery = countQuery.Where("filename LIKE ?", "%"+params.FileName+"%")
+	}
+	if params.FileMD5 != "" {
+		countQuery = countQuery.Where("file_md5 = ?", params.FileMD5)
+	}
+	if params.IP != "" {
+		countQuery = countQuery.Where("ip = ?", params.IP)
+	}
+	if err := countQuery.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	common.CreateResponse(c, common.SuccessCode, gin.H{
+		"list":     logs,
+		"current":  params.Current,
+		"pageSize": params.PageSize,
+		"total":    total,
+	})
+}
+
+// GetFileOverview 获取文件总览统计：文件总数、目录数、总大小
+func GetFileOverview(c *gin.Context) {
+	baseDir := common.GetDownloadDir()
+
+	var totalFiles int64
+	var totalDirs int64
+	var totalSize int64
+
+	// 递归统计
+	filepath.Walk(baseDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // 跳过无法访问的文件
+		}
+		if info.IsDir() {
+			totalDirs++
+		} else {
+			totalFiles++
+			totalSize += info.Size()
+		}
+		return nil
+	})
+
+	// 减去根目录本身
+	if totalDirs > 0 {
+		totalDirs--
+	}
+
+	common.CreateResponse(c, common.SuccessCode, gin.H{
+		"totalFiles": totalFiles,
+		"totalDirs":  totalDirs,
+		"totalSize":  totalSize,
+		"totalSizeFormatted": formatBytes(totalSize),
+	})
+}
+
+func formatBytes(bytes int64) string {
+	const (
+		KB = 1024
+		MB = 1024 * KB
+		GB = 1024 * MB
+		TB = 1024 * GB
+	)
+	switch {
+	case bytes >= TB:
+		return fmt.Sprintf("%.2f TB", float64(bytes)/float64(TB))
+	case bytes >= GB:
+		return fmt.Sprintf("%.2f GB", float64(bytes)/float64(GB))
+	case bytes >= MB:
+		return fmt.Sprintf("%.2f MB", float64(bytes)/float64(MB))
+	case bytes >= KB:
+		return fmt.Sprintf("%.2f KB", float64(bytes)/float64(KB))
+	}
+	return fmt.Sprintf("%d B", bytes)
 }

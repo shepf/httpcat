@@ -130,6 +130,27 @@ declare namespace API {
     totalDownloadCount?: number;
   }
 
+  // 下载历史日志
+  interface DownloadHistoryLogItem {
+    id?: number;
+    ip?: string;
+    appkey?: string;
+    download_time?: string;
+    filename?: string;
+    file_size?: string;
+    file_md5?: string;
+    created_time?: string;
+    modified_time?: string;
+  }
+
+  // 文件总览统计
+  interface FileOverview {
+    totalFiles?: number;
+    totalDirs?: number;
+    totalSize?: number;
+    totalSizeFormatted?: string;
+  }
+
   interface HttpcatConf {
     downloadDir?: string;
     fileUploadEnable?: boolean;
@@ -169,6 +190,32 @@ declare namespace API {
     FileName: string;
     LastModified: string;
     Size: string;
+    IsDir?: boolean;
+  }
+
+  // 文件删除结果
+  interface DeleteFilesResult {
+    deleted?: string[];
+    failed?: { file: string; error: string }[];
+  }
+
+  // 文件批量操作请求
+  interface DeleteFilesParams {
+    files: string[];
+    dir?: string;
+  }
+
+  // 创建文件夹请求
+  interface CreateFolderParams {
+    name: string;
+    dir?: string;
+  }
+
+  // 重命名请求
+  interface RenameFileParams {
+    oldName: string;
+    newName: string;
+    dir?: string;
   }
 
   interface ImageListResponse {

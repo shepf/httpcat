@@ -75,22 +75,17 @@ func RegisterRouter(r *gin.Engine) {
 			//上传用户头像
 			userRouter.POST("/uploadAvatar", v1.UploadAvatar)
 
-			//	userRouter.POST("/del", v1.DelUser)
-			//	userRouter.POST("/update", v1.UpdateUser)
-			//	userRouter.POST("/resetPassword", v1.ResetPassword)
-			//	userRouter.POST("/checkUser", v1.CheckPassword)
-			userRouter.GET("/generateAppSecret", generateAppSecret)
-			userRouter.POST("/saveUploadToken", saveUploadToken)
-			userRouter.DELETE("/removeUploadToken", removeUploadToken)
-			userRouter.GET("/uploadTokenLists", getUploadTokenLists)
-			userRouter.POST("/createUploadToken", createUploadToken)
-			userRouter.POST("/checkUploadToken", checkUploadToken)
+			userRouter.GET("/generateAppSecret", v1.GenerateAppSecret)
+			userRouter.POST("/saveUploadToken", v1.SaveUploadToken)
+			userRouter.DELETE("/removeUploadToken", v1.RemoveUploadToken)
+			userRouter.GET("/uploadTokenLists", v1.GetUploadTokenLists)
+			userRouter.POST("/createUploadToken", v1.CreateUploadToken)
+			userRouter.POST("/checkUploadToken", v1.CheckUploadToken)
 
 			// 统计信息
 			// 数据概览 Data Overview
-			userRouter.GET("/dataOverview", dataOverview)
-			userRouter.GET("/getUploadAvailableSpace", getUploadAvailableSpace)
-
+			userRouter.GET("/dataOverview", v1.DataOverview)
+			userRouter.GET("/getUploadAvailableSpace", v1.GetUploadAvailableSpace)
 		}
 
 		// 统计信息
@@ -99,29 +94,35 @@ func RegisterRouter(r *gin.Engine) {
 		{
 			statisticsRouter.GET("/getUploadStatistics", v1.GetUploadStatistics)
 			statisticsRouter.GET("/getDownloadStatistics", v1.GetDownloadStatistics)
+			statisticsRouter.GET("/getFileOverview", v1.GetFileOverview)
+			statisticsRouter.GET("/downloadHistoryLogs", v1.GetDownloadHistoryLogs)
 		}
 
 		// 文件操作相关接口
 		fileRouter := apiv1Group.Group("/file")
 		{
 			//获取配置文件中的上传下载目录配置
-			fileRouter.GET("/getDirConf", getDirConf)
-			fileRouter.POST("/upload", uploadFile)
+			fileRouter.GET("/getDirConf", v1.GetDirConf)
+			fileRouter.POST("/upload", v1.UploadFile)
 			//使用实现 API 方式进行文件下载,而不是直接通过 StaticFS 暴露文件：
 			//原因是:
 			//1. StaticFS 更适合提供静态资源文件的访问,这些文件通常对所有用户都是公开的,不需要鉴权。
 			//2. 对于需要权限控制的文件下载,实现 API 方式更合适,可以方便地在代码中添加鉴权逻辑。
 			fileRouter.GET("/download", v1.DownloadFile)
 			// 获取目录文件列表
-			fileRouter.GET("/listFiles", listFiles)
+			fileRouter.GET("/listFiles", v1.ListFiles)
 			// 获取某个文件的信息
-			fileRouter.GET("/getFileInfo", getFileInfo)
+			fileRouter.GET("/getFileInfo", v1.GetFileInfo)
 
 			//获取上传文件历史记录
-			fileRouter.GET("/uploadHistoryLogs", uploadHistoryLogs)
+			fileRouter.GET("/uploadHistoryLogs", v1.UploadHistoryLogs)
 			// 删除上传历史记录
-			fileRouter.DELETE("/uploadHistoryLogs", deleteHistoryLogs)
+			fileRouter.DELETE("/uploadHistoryLogs", v1.DeleteHistoryLogs)
 
+			// v0.5.0 新增：文件管理增强
+			fileRouter.POST("/delete", v1.DeleteFiles)
+			fileRouter.POST("/mkdir", v1.CreateFolder)
+			fileRouter.POST("/rename", v1.RenameFile)
 		}
 
 		imageManageRouter := apiv1Group.Group("/imageManage")
@@ -142,11 +143,10 @@ func RegisterRouter(r *gin.Engine) {
 
 		if common.P2pEnable {
 			ylog.Infof("[ROUTE]", "httpcat 开启 P2P功能")
-			// 文件操作相关接口
 			p2pRouter := apiv1Group.Group("/p2p")
 			{
-				p2pRouter.POST("/send_message", sendP2pMessage)
-				p2pRouter.POST("/get_subscribed_topics", getSubscribedTopics)
+				p2pRouter.POST("/send_message", SendP2pMessage)
+				p2pRouter.POST("/get_subscribed_topics", GetSubscribedTopics)
 			}
 		}
 

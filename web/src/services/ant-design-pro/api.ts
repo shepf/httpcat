@@ -149,6 +149,33 @@ export async function getDownloadStatistics(options?: { [key: string]: any }) {
   });
 }
 
+/** 获取下载历史日志 GET /api/v1/statistics/downloadHistoryLogs */
+export async function downloadHistoryLogs(params: {
+  current?: number;
+  pageSize?: number;
+  filename?: string;
+  file_md5?: string;
+  ip?: string;
+}) {
+  return request<API.MyResponse<{
+    list: API.DownloadHistoryLogItem[];
+    current: number;
+    pageSize: number;
+    total: number;
+  }>>('/api/v1/statistics/downloadHistoryLogs', {
+    method: 'GET',
+    params,
+  });
+}
+
+/** 获取文件总览统计 GET /api/v1/statistics/getFileOverview */
+export async function getFileOverview(options?: { [key: string]: any }) {
+  return request<API.MyResponse<API.FileOverview>>('/api/v1/statistics/getFileOverview', {
+    method: 'GET',
+    ...(options || {}),
+  });
+}
+
 /** 获取磁盘空间 */
 export async function getUploadAvailableSpace(options?: { [key: string]: any }) {
   return request<API.UploadAvailableSpace>('/api/v1/user/getUploadAvailableSpace', {
@@ -204,6 +231,30 @@ export async function listFiles(params?: { dir?: string }) {
   return request<API.MyResponse<API.FileItem[]>>('/api/v1/file/listFiles', {
     method: 'GET',
     params,
+  });
+}
+
+/** 批量删除文件 POST /api/v1/file/delete */
+export async function deleteFiles(data: API.DeleteFilesParams) {
+  return request<API.MyResponse<API.DeleteFilesResult>>('/api/v1/file/delete', {
+    method: 'POST',
+    data,
+  });
+}
+
+/** 创建文件夹 POST /api/v1/file/mkdir */
+export async function createFolder(data: API.CreateFolderParams) {
+  return request<API.MyResponse<string>>('/api/v1/file/mkdir', {
+    method: 'POST',
+    data,
+  });
+}
+
+/** 重命名文件/文件夹 POST /api/v1/file/rename */
+export async function renameFile(data: API.RenameFileParams) {
+  return request<API.MyResponse<string>>('/api/v1/file/rename', {
+    method: 'POST',
+    data,
   });
 }
 
