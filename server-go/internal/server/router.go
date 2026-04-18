@@ -55,6 +55,9 @@ func RegisterRouter(r *gin.Engine) {
 		apiv1Group.Use(midware.TokenOrAKSKAuth())
 		//apiv1Group.Use(midware.RBACAuth())
 
+		// v0.6.0: 操作日志记录中间件（在认证之后）
+		apiv1Group.Use(v1.OperationLogger())
+
 		confRouter := apiv1Group.Group("/conf")
 		{
 			confRouter.GET("/getVersion", v1.GetVersion)
@@ -123,6 +126,11 @@ func RegisterRouter(r *gin.Engine) {
 			fileRouter.POST("/delete", v1.DeleteFiles)
 			fileRouter.POST("/mkdir", v1.CreateFolder)
 			fileRouter.POST("/rename", v1.RenameFile)
+
+			// v0.6.0 新增：文件在线预览 & 打包下载
+			fileRouter.GET("/preview", v1.PreviewFile)
+			fileRouter.GET("/previewInfo", v1.GetPreviewInfo)
+			fileRouter.POST("/downloadZip", v1.DownloadZip)
 		}
 
 		imageManageRouter := apiv1Group.Group("/imageManage")
@@ -158,6 +166,13 @@ func RegisterRouter(r *gin.Engine) {
 			shareRouter.DELETE("/:code", v1.DeleteShare)
 			shareRouter.GET("/stats", v1.ShareStats)
 			shareRouter.GET("/config", v1.GetShareConfig)
+		}
+
+		// v0.6.0: 操作日志接口
+		oplogRouter := apiv1Group.Group("/oplog")
+		{
+			oplogRouter.GET("/list", v1.GetOperationLogs)
+			oplogRouter.GET("/stats", v1.GetOperationStats)
 		}
 
 	}
@@ -222,7 +237,7 @@ func Cors() gin.HandlerFunc {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 			c.Header("Access-Control-Allow-Origin", "*")
 			c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE,UPDATE")
-			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Length, X-CSRF-Token, Token,session,X_Requested_With,Accept, Origin, Host, Connection, Accept-Encoding, Accept-Language,DNT, X-CustomHeader, Keep-Alive, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type, Pragma, AccessKey, Signature, TimeStamp")
+			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Length, X-CSRF-Token, Token,session,X_Requested_With,Accept, Origin, Host, Connection, Accept-Encoding, Accept-Language,DNT, X-CustomHeader, Keep-Alive, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type, Pragma, AccessKey, Signature, TimeStamp, UploadToken")
 			c.Header("Access-Control-Expose-Headers", "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers,Cache-Control,Content-Language,Content-Type,Expires,Last-Modified,Pragma,FooBar,Content-Disposition, token")
 			c.Header("Access-Control-Max-Age", "172800")
 			c.Header("Access-Control-Allow-Credentials", "false")

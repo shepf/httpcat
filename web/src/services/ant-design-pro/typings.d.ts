@@ -322,4 +322,54 @@ declare namespace API {
     shareEnable?: boolean;
     anonymousAccess?: boolean;
   }
+
+  // ===== v0.6.0 文件预览 & 打包下载 =====
+  interface PreviewInfo {
+    fileName?: string;
+    size?: number;
+    sizeFormatted?: string;
+    lastModified?: string;
+    extension?: string;
+    mimeType?: string;
+    previewType?: 'text' | 'markdown' | 'pdf' | 'image' | 'video' | 'audio' | 'unsupported';
+    canPreview?: boolean;
+  }
+
+  interface DownloadZipParams {
+    files: string[];
+    dir?: string;
+  }
+
+  // ===== v0.6.0 操作日志 =====
+  interface OperationLogItem {
+    id?: number;
+    username?: string;
+    ip?: string;
+    method?: string;
+    path?: string;
+    action?: string;
+    detail?: string;
+    status?: number;
+    latency?: number;
+    userAgent?: string;
+    createdAt?: string;
+  }
+
+  interface OperationLogParams {
+    current: number;
+    pageSize: number;
+    action?: string;
+    username?: string;
+    ip?: string;
+    path?: string;
+    detail?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }
+
+  interface OperationStats {
+    totalCount?: number;
+    todayCount?: number;
+    actionCounts?: { action: string; count: number }[];
+  }
 }

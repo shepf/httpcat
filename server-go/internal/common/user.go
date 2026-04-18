@@ -312,3 +312,11 @@ func InitializeUploadImageTable(db *gorm.DB) {
 		return
 	}
 }
+
+func InitializeOperationLogTable(db *gorm.DB) {
+	err := db.AutoMigrate(&models.OperationLogModel{})
+	if err != nil {
+		ylog.Errorf("initDB", "create t_operation_log table failed, err:%v", err)
+		return
+	}
+}

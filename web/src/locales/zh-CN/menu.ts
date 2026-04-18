@@ -4,6 +4,7 @@ export default {
   'menu.home': '首页',
   'menu.admin': 'HttpCat',
   'menu.admin.sub-page': '上传token管理',
+  'menu.admin.operation-log': '操作日志',
   'menu.admin.sysinfo-page': '系统信息',
   'menu.admin.sys-config': '系统配置',
   'menu.file_manage': '文件管理',

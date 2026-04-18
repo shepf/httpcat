@@ -180,7 +180,7 @@ func initDefault() {
 	if _, err := os.Stat(uploadFullDir); os.IsNotExist(err) {
 		err := os.MkdirAll(uploadFullDir, 0755)
 		if err != nil {
-			ylog.Errorf("initDefault", "创建UploadDir目录失败", err)
+			ylog.Errorf("initDefault", "创建UploadDir目录失败: %v", err)
 			panic(err)
 		}
 	}
@@ -188,7 +188,7 @@ func initDefault() {
 	if _, err := os.Stat(downloadFullDir); os.IsNotExist(err) {
 		err := os.MkdirAll(downloadFullDir, 0755)
 		if err != nil {
-			ylog.Errorf("initDefault", "创建DownloadDir目录失败", err)
+			ylog.Errorf("initDefault", "创建DownloadDir目录失败: %v", err)
 			panic(err)
 		}
 	}
@@ -281,6 +281,9 @@ func initDB() {
 
 		// 创建 t_share 表（如果不存在）
 		InitializeShareTable(db)
+
+		// 创建 t_operation_log 表（如果不存在）
+		InitializeOperationLogTable(db)
 
 		ylog.Infof("initDB", "init end~")
 	}

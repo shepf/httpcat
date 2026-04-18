@@ -26,6 +26,11 @@ var whiteUrlList = []string{
 	"/api/v1/imageManage/download", // 下载图片
 	"/api/v1/user/login/account"}
 
+// queryTokenUrlList 允许从 URL query 参数获取 token 的路径（v0.6.0：用于文件预览 img/video/audio 标签）
+var queryTokenUrlList = []string{
+	"/api/v1/file/preview",
+}
+
 type AuthClaims struct {
 	Username string `json:"username"`
 	jwt.StandardClaims
@@ -293,6 +298,12 @@ func TokenOrAKSKAuth() gin.HandlerFunc {
 
 		// 回退到 JWT Token 认证
 		token := c.GetHeader("Authorization")
+		if token == "" {
+			// v0.6.0: 对于预览等接口，允许从 query 参数获取 token（用于 img/video/audio 标签）
+			if utils.Contains(queryTokenUrlList, c.Request.URL.Path) {
+				token = c.Query("token")
+			}
+		}
 		if token == "" {
 			ylog.Errorf("AuthRequired", "token is empty")
 			c.AbortWithStatus(http.StatusUnauthorized)

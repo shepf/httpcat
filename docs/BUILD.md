@@ -18,7 +18,7 @@ chmod +x scripts/*.sh
 | 参数 | 说明 |
 |------|------|
 | `-h, --help` | 显示帮助信息 |
-| `-v, --version VER` | 指定版本号（默认 v0.3.0） |
+| `-v, --version VER` | 指定版本号（默认 v0.6.0） |
 | `-p, --platform PLAT` | 只构建指定平台 |
 | `-a, --all` | 构建所有平台 |
 | `-f, --frontend` | 构建前端 |
@@ -149,10 +149,10 @@ HTTPCAT_VERSION=v1.0.0 ./scripts/build.sh -a -f
 
 ```
 release/
-├── httpcat_v0.3.0_linux-amd64.tar.gz    # Linux x86_64 安装包
-├── httpcat_v0.3.0_linux-arm64.tar.gz    # Linux ARM64 安装包
-├── httpcat_v0.3.0_darwin-arm64.tar.gz   # macOS Apple Silicon 安装包
-└── httpcat_v0.3.0_windows-amd64.zip     # Windows 安装包
+├── httpcat_v0.6.0_linux-amd64.tar.gz    # Linux x86_64 安装包
+├── httpcat_v0.6.0_linux-arm64.tar.gz    # Linux ARM64 安装包
+├── httpcat_v0.6.0_darwin-arm64.tar.gz   # macOS Apple Silicon 安装包
+└── httpcat_v0.6.0_windows-amd64.zip     # Windows 安装包
 ```
 
 > 💡 Intel Mac (darwin_amd64) 已淘汰，如需构建请手动指定：`-p darwin_amd64`
@@ -270,8 +270,8 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o httpcat-linux-amd64 ./cmd/http
 
 ```bash
 # 解压安装包
-tar -xzf httpcat_v0.3.0_linux-amd64.tar.gz
-cd httpcat_v0.3.0_linux-amd64
+tar -xzf httpcat_v0.6.0_linux-amd64.tar.gz
+cd httpcat_v0.6.0_linux-amd64
 
 # 方式 1: 使用安装脚本（推荐）
 sudo ./install.sh
@@ -306,7 +306,7 @@ npm run build
 
 ```bash
 ./httpcat -v
-# 输出: httpcat version v0.3.0 (build: 202401311200, commit: abc1234)
+# 输出: httpcat version v0.6.0 (build: 202401311200, commit: abc1234)
 ```
 
 ### Q: 如何只清理构建目录？

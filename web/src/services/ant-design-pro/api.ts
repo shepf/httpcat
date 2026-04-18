@@ -380,3 +380,101 @@ export async function getShareConfig() {
   });
 }
 
+// ==================== v0.6.0 文件预览 & 打包下载 ====================
+
+/** 获取文件预览信息 GET /api/v1/file/previewInfo */
+export async function getPreviewInfo(params: { filename: string }) {
+  return request<API.MyResponse<API.PreviewInfo>>('/api/v1/file/previewInfo', {
+    method: 'GET',
+    params,
+  });
+}
+
+/** 获取文件预览 URL */
+export function getPreviewUrl(filename: string): string {
+  const token = localStorage.getItem('token') || '';
+  return `/api/v1/file/preview?filename=${encodeURIComponent(filename)}&token=${encodeURIComponent(token)}`;
+}
+
+/** 打包下载 POST /api/v1/file/downloadZip */
+export async function downloadZip(data: API.DownloadZipParams) {
+  const token = localStorage.getItem('token') || '';
+  const response = await fetch('/api/v1/file/downloadZip', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error('Download failed');
+  }
+
+  // 从 Content-Disposition 获取文件名
+  const contentDisposition = response.headers.get('Content-Disposition');
+  let zipFileName = 'httpcat-download.zip';
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename="?(.+?)"?$/);
+    if (match) {
+      zipFileName = match[1];
+    }
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = zipFileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
+/** 上传文件到指定目录（v0.6.0：支持 dir 参数） */
+export async function uploadFileToDir(
+  file: File,
+  dir: string,
+  uploadToken: string,
+  onProgress?: (percent: number) => void,
+) {
+  const formData = new FormData();
+  formData.append('f1', file);
+  if (dir) {
+    formData.append('dir', dir);
+  }
+
+  return request('/api/v1/file/upload', {
+    method: 'POST',
+    data: formData,
+    headers: {
+      UploadToken: uploadToken,
+    },
+    requestType: 'form',
+  });
+}
+
+// ==================== v0.6.0 操作日志 ====================
+
+/** 获取操作日志列表 GET /api/v1/oplog/list */
+export async function getOperationLogs(params: API.OperationLogParams) {
+  return request<API.MyResponse<{
+    list: API.OperationLogItem[];
+    current: number;
+    pageSize: number;
+    total: number;
+  }>>('/api/v1/oplog/list', {
+    method: 'GET',
+    params,
+  });
+}
+
+/** 获取操作日志统计 GET /api/v1/oplog/stats */
+export async function getOperationStats() {
+  return request<API.MyResponse<API.OperationStats>>('/api/v1/oplog/stats', {
+    method: 'GET',
+  });
+}
+

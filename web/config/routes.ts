@@ -54,6 +54,12 @@
         component: './uploadTokenManage',
       },
       {
+        path: '/admin/operation-log',
+        name: 'operation-log',
+        icon: 'fileSearch',
+        component: './OperationLog',
+      },
+      {
         component: './404',
       },
     ],

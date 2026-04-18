@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        VERSION: v0.3.0
+        VERSION: v0.6.0
         BUILD_TIME: ${BUILD_TIME:-unknown}
         COMMIT_ID: ${COMMIT_ID:-unknown}
     image: httpcat:latest

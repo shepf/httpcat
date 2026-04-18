@@ -149,7 +149,7 @@ NODE_OPTIONS=--openssl-legacy-provider npm run start:dev
 
 ```bash
 # 下载并解压
-httpcat_version="v0.5.0"
+httpcat_version="v0.6.0"
 tar -zxvf httpcat_${httpcat_version}_linux-amd64.tar.gz
 cd httpcat_${httpcat_version}_linux-amd64
 

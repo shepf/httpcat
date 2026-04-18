@@ -1,13 +1,18 @@
 import {
+  CloudUploadOutlined,
   CopyOutlined,
   DeleteOutlined,
   DownloadOutlined,
   EditOutlined,
+  EyeOutlined,
   FileOutlined,
+  FileZipOutlined,
   FolderAddOutlined,
   FolderOutlined,
   HomeOutlined,
+  InboxOutlined,
   ReloadOutlined,
+  ScissorOutlined,
   ShareAltOutlined,
 } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
@@ -20,6 +25,7 @@ import {
   message,
   Modal,
   Popconfirm,
+  Progress,
   Select,
   Space,
   Switch,
@@ -29,8 +35,18 @@ import {
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useEffect, useState } from 'react';
-import { createShare, deleteFiles, createFolder, renameFile, listFiles } from '@/services/ant-design-pro/api';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  createShare,
+  deleteFiles,
+  createFolder,
+  renameFile,
+  listFiles,
+  downloadZip,
+  getFirstUploadToken,
+  uploadFileToDir,
+} from '@/services/ant-design-pro/api';
+import FilePreview from '../components/FilePreview';
 
 const { Paragraph } = Typography;
 
@@ -61,6 +77,21 @@ const FileList: React.FC = () => {
   const [renameForm] = Form.useForm();
   const [renameTarget, setRenameTarget] = useState<API.FileItem | null>(null);
 
+  // v0.6.0: 文件预览
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewFileName, setPreviewFileName] = useState('');
+
+  // v0.6.0: 拖拽上传 & 剪贴板粘贴上传
+  const [uploadToken, setUploadToken] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadingFiles, setUploadingFiles] = useState<string[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
+
+  // v0.6.0: 打包下载
+  const [zipLoading, setZipLoading] = useState(false);
+
   const fetchData = async (dir?: string) => {
     setLoading(true);
     try {
@@ -74,9 +105,130 @@ const FileList: React.FC = () => {
     }
   };
 
+  // 获取 UploadToken（用于拖拽和粘贴上传）
+  const ensureUploadToken = async (): Promise<string> => {
+    if (uploadToken) return uploadToken;
+    try {
+      const token = await getFirstUploadToken();
+      if (token) {
+        setUploadToken(token);
+        return token;
+      }
+      message.warning('没有可用的上传Token，请先在Token管理中创建');
+      return '';
+    } catch {
+      message.error('获取上传Token失败');
+      return '';
+    }
+  };
+
   useEffect(() => {
     fetchData(currentDir);
   }, [currentDir]);
+
+  // ========== v0.6.0: 剪贴板粘贴上传 ==========
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const files: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) {
+            // 为剪贴板截图生成文件名
+            let fileName = file.name;
+            if (!fileName || fileName === 'image.png') {
+              const now = new Date();
+              const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+              const ext = file.type.split('/')[1] || 'png';
+              fileName = `clipboard-${timestamp}.${ext}`;
+            }
+            files.push(new File([file], fileName, { type: file.type }));
+          }
+        }
+      }
+
+      if (files.length > 0) {
+        e.preventDefault();
+        await handleUploadFiles(files);
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [currentDir, uploadToken]);
+
+  // ========== v0.6.0: 文件上传核心逻辑 ==========
+  const handleUploadFiles = async (files: File[]) => {
+    const token = await ensureUploadToken();
+    if (!token) return;
+
+    setUploading(true);
+    setUploadingFiles(files.map((f) => f.name));
+    setUploadProgress(0);
+
+    let completed = 0;
+    const total = files.length;
+
+    for (const file of files) {
+      try {
+        await uploadFileToDir(file, currentDir, token);
+        completed++;
+        setUploadProgress(Math.round((completed / total) * 100));
+      } catch {
+        message.error(`上传失败: ${file.name}`);
+      }
+    }
+
+    setUploading(false);
+    setUploadingFiles([]);
+    if (completed > 0) {
+      message.success(`成功上传 ${completed} 个文件`);
+      fetchData();
+    }
+  };
+
+  // ========== v0.6.0: 拖拽上传事件处理 ==========
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragOver(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounterRef.current = 0;
+      setIsDragOver(false);
+
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length > 0) {
+        await handleUploadFiles(files);
+      }
+    },
+    [currentDir, uploadToken],
+  );
 
   // ========== 目录导航 ==========
   const pathSegments = currentDir ? currentDir.split('/').filter(Boolean) : [];
@@ -95,6 +247,33 @@ const FileList: React.FC = () => {
   const handleDownload = (fileName: string) => {
     const filePath = currentDir ? `${currentDir}/${fileName}` : fileName;
     window.open(`/api/v1/file/download?filename=${encodeURIComponent(filePath)}`);
+  };
+
+  // v0.6.0: 文件预览
+  const handlePreview = (record: API.FileItem) => {
+    const filePath = currentDir ? `${currentDir}/${record.FileName}` : record.FileName;
+    setPreviewFileName(filePath);
+    setPreviewVisible(true);
+  };
+
+  // v0.6.0: 打包下载
+  const handleDownloadZip = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要打包下载的文件');
+      return;
+    }
+    setZipLoading(true);
+    try {
+      await downloadZip({
+        files: selectedRowKeys as string[],
+        dir: currentDir || undefined,
+      });
+      message.success('打包下载成功');
+    } catch {
+      message.error('打包下载失败');
+    } finally {
+      setZipLoading(false);
+    }
   };
 
   const handleShare = (record: API.FileItem) => {
@@ -261,6 +440,28 @@ const FileList: React.FC = () => {
     return ext ? <Tag color={colorMap[ext] || 'default'}>{ext.toUpperCase()}</Tag> : null;
   };
 
+  // 判断文件是否支持预览
+  const canPreview = (record: API.FileItem): boolean => {
+    if (record.IsDir) return false;
+    const ext = record.FileName.split('.').pop()?.toLowerCase() || '';
+    const previewExts = [
+      // 文本/代码
+      'txt', 'log', 'csv', 'md', 'markdown', 'json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'conf',
+      'go', 'py', 'js', 'jsx', 'ts', 'tsx', 'java', 'c', 'cpp', 'h', 'hpp', 'rs', 'rb', 'php',
+      'swift', 'kt', 'scala', 'sh', 'bash', 'zsh', 'sql', 'r', 'lua', 'dart', 'vue', 'svelte',
+      'html', 'htm', 'css', 'less', 'scss', 'sass', 'cfg', 'properties',
+      // 文档
+      'pdf',
+      // 图片
+      'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico',
+      // 视频
+      'mp4', 'webm', 'ogg', 'ogv', 'mov',
+      // 音频
+      'mp3', 'wav', 'flac', 'aac', 'oga', 'm4a', 'wma',
+    ];
+    return previewExts.includes(ext);
+  };
+
   const filteredData = searchText
     ? data.filter((item) => item.FileName.toLowerCase().includes(searchText.toLowerCase()))
     : data;
@@ -273,7 +474,6 @@ const FileList: React.FC = () => {
       key: 'FileName',
       ellipsis: true,
       sorter: (a, b) => {
-        // 目录优先
         if (a.IsDir && !b.IsDir) return -1;
         if (!a.IsDir && b.IsDir) return 1;
         return a.FileName.localeCompare(b.FileName);
@@ -284,6 +484,12 @@ const FileList: React.FC = () => {
           {record.IsDir ? (
             <a onClick={() => handleFolderClick(record.FileName)} style={{ fontWeight: 500 }}>
               {record.FileName}
+            </a>
+          ) : canPreview(record) ? (
+            <a onClick={() => handlePreview(record)} style={{ cursor: 'pointer' }}>
+              <Tooltip title="点击预览">
+                {record.FileName}
+              </Tooltip>
             </a>
           ) : (
             <Tooltip title={record.FileName}>
@@ -325,27 +531,32 @@ const FileList: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 260,
+      width: 220,
       fixed: 'right' as const,
       render: (_, record) => (
-        <Space size={0}>
+        <Space size={4} style={{ flexWrap: 'nowrap' }}>
           {record.IsDir ? (
             <Button type="link" size="small" onClick={() => handleFolderClick(record.FileName)}>
               打开
             </Button>
           ) : (
             <>
-              <Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(record.FileName)}>
-                下载
-              </Button>
-              <Button type="link" size="small" icon={<ShareAltOutlined />} onClick={() => handleShare(record)}>
-                分享
-              </Button>
+              {canPreview(record) && (
+                <Tooltip title="预览">
+                  <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handlePreview(record)} />
+                </Tooltip>
+              )}
+              <Tooltip title="下载">
+                <Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(record.FileName)} />
+              </Tooltip>
+              <Tooltip title="分享">
+                <Button type="link" size="small" icon={<ShareAltOutlined />} onClick={() => handleShare(record)} />
+              </Tooltip>
             </>
           )}
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleRename(record)}>
-            重命名
-          </Button>
+          <Tooltip title="重命名">
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleRename(record)} />
+          </Tooltip>
           <Popconfirm
             title={`确定删除 "${record.FileName}"？`}
             description={record.IsDir ? '注意：只能删除空文件夹' : undefined}
@@ -353,9 +564,9 @@ const FileList: React.FC = () => {
             okText="确定"
             cancelText="取消"
           >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
+            <Tooltip title="删除">
+              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            </Tooltip>
           </Popconfirm>
         </Space>
       ),
@@ -408,16 +619,25 @@ const FileList: React.FC = () => {
         </Space>
         <Space wrap>
           {selectedRowKeys.length > 0 && (
-            <Popconfirm
-              title={`确定删除选中的 ${selectedRowKeys.length} 项？`}
-              onConfirm={handleBatchDelete}
-              okText="确定"
-              cancelText="取消"
-            >
-              <Button danger icon={<DeleteOutlined />}>
-                批量删除 ({selectedRowKeys.length})
+            <>
+              <Button
+                icon={<FileZipOutlined />}
+                loading={zipLoading}
+                onClick={handleDownloadZip}
+              >
+                打包下载 ({selectedRowKeys.length})
               </Button>
-            </Popconfirm>
+              <Popconfirm
+                title={`确定删除选中的 ${selectedRowKeys.length} 项？`}
+                onConfirm={handleBatchDelete}
+                okText="确定"
+                cancelText="取消"
+              >
+                <Button danger icon={<DeleteOutlined />}>
+                  批量删除 ({selectedRowKeys.length})
+                </Button>
+              </Popconfirm>
+            </>
           )}
           <Button
             icon={<FolderAddOutlined />}
@@ -434,21 +654,88 @@ const FileList: React.FC = () => {
         </Space>
       </div>
 
-      {/* 文件表格 */}
-      <Table
-        columns={columns}
-        dataSource={filteredData}
-        rowKey="FileName"
-        loading={loading}
-        scroll={{ x: 800 }}
-        rowSelection={rowSelection}
-        pagination={{
-          defaultPageSize: 20,
-          showSizeChanger: true,
-          pageSizeOptions: ['10', '20', '50', '100'],
-          showTotal: (total) => `共 ${total} 项${selectedRowKeys.length > 0 ? `，已选 ${selectedRowKeys.length} 项` : ''}`,
-        }}
-        size="middle"
+      {/* v0.6.0: 上传进度提示 */}
+      {uploading && (
+        <div style={{
+          marginBottom: 16,
+          padding: '12px 16px',
+          background: '#e6f7ff',
+          borderRadius: 8,
+          border: '1px solid #91d5ff',
+        }}>
+          <Space>
+            <CloudUploadOutlined style={{ color: '#1890ff' }} />
+            <span>正在上传: {uploadingFiles.join(', ')}</span>
+          </Space>
+          <Progress percent={uploadProgress} size="small" style={{ marginTop: 4 }} />
+        </div>
+      )}
+
+      {/* v0.6.0: 拖拽上传区域包裹文件表格 */}
+      <div
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        style={{ position: 'relative' }}
+      >
+        {/* 拖拽遮罩 */}
+        {isDragOver && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(24, 144, 255, 0.06)',
+              border: '2px dashed #1890ff',
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 100,
+              pointerEvents: 'none',
+            }}
+          >
+            <div style={{ textAlign: 'center' }}>
+              <InboxOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+              <div style={{ marginTop: 8, fontSize: 16, color: '#1890ff', fontWeight: 500 }}>
+                松开鼠标上传到{currentDir ? ` "${currentDir}"` : '根目录'}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 文件表格 */}
+        <Table
+          columns={columns}
+          dataSource={filteredData}
+          rowKey="FileName"
+          loading={loading}
+          scroll={{ x: 900 }}
+          rowSelection={rowSelection}
+          pagination={{
+            defaultPageSize: 20,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            showTotal: (total) => `共 ${total} 项${selectedRowKeys.length > 0 ? `，已选 ${selectedRowKeys.length} 项` : ''}`,
+          }}
+          size="middle"
+          footer={() => (
+            <div style={{ textAlign: 'center', color: '#999', fontSize: 12 }}>
+              <ScissorOutlined style={{ marginRight: 4 }} />
+              提示：可直接拖拽文件到此区域上传，或按 Ctrl+V 粘贴截图上传到当前目录
+            </div>
+          )}
+        />
+      </div>
+
+      {/* v0.6.0: 文件预览弹窗 */}
+      <FilePreview
+        visible={previewVisible}
+        fileName={previewFileName}
+        onClose={() => setPreviewVisible(false)}
       />
 
       {/* 创建分享弹窗 */}
