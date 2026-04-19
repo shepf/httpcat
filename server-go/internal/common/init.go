@@ -285,6 +285,9 @@ func initDB() {
 		// 创建 t_operation_log 表（如果不存在）
 		InitializeOperationLogTable(db)
 
+		// v0.7.0: 创建 t_upload_session 表（分片上传会话）
+		InitializeUploadSessionTable(db)
+
 		ylog.Infof("initDB", "init end~")
 	}
 

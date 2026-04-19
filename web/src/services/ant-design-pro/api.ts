@@ -478,3 +478,229 @@ export async function getOperationStats() {
   });
 }
 
+// ==================== v0.7.0 分片上传 + 断点续传 ====================
+
+/** 初始化分片上传会话 POST /api/v1/file/upload/init */
+export async function initChunkUpload(data: API.InitChunkUploadParams, uploadToken: string) {
+  return request<API.MyResponse<API.InitChunkUploadResp>>('/api/v1/file/upload/init', {
+    method: 'POST',
+    data,
+    headers: {
+      UploadToken: uploadToken,
+    },
+  });
+}
+
+/** 查询分片上传会话状态 GET /api/v1/file/upload/status?uploadId=xxx */
+export async function getChunkUploadStatus(uploadId: string) {
+  return request<API.MyResponse<API.ChunkUploadStatus>>('/api/v1/file/upload/status', {
+    method: 'GET',
+    params: { uploadId },
+  });
+}
+
+/** 上传单个分片 POST /api/v1/file/upload/chunk
+ *  使用原生 XHR 以支持上传进度
+ */
+export function uploadSingleChunk(
+  uploadId: string,
+  chunkIndex: number,
+  chunkBlob: Blob,
+  uploadToken: string,
+  onProgress?: (percent: number) => void,
+  chunkMD5?: string,
+): Promise<API.MyResponse<any>> {
+  return new Promise((resolve, reject) => {
+    const fd = new FormData();
+    fd.append('uploadId', uploadId);
+    fd.append('chunkIndex', String(chunkIndex));
+    if (chunkMD5) fd.append('chunkMD5', chunkMD5);
+    fd.append('chunk', chunkBlob);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/v1/file/upload/chunk', true);
+    xhr.setRequestHeader('UploadToken', uploadToken);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded * 100) / e.total));
+      }
+    };
+    xhr.onload = () => {
+      try {
+        const resp = JSON.parse(xhr.responseText);
+        if (xhr.status === 200 && resp.errorCode === 0) {
+          resolve(resp);
+        } else {
+          reject(new Error(resp.msg || `chunk upload failed: ${xhr.status}`));
+        }
+      } catch (e) {
+        reject(e);
+      }
+    };
+    xhr.onerror = () => reject(new Error('network error'));
+    xhr.onabort = () => reject(new Error('aborted'));
+    xhr.send(fd);
+  });
+}
+
+/** 完成分片上传（合并分片） POST /api/v1/file/upload/complete */
+export async function completeChunkUpload(uploadId: string, uploadToken: string) {
+  return request<API.MyResponse<API.CompleteChunkUploadResp>>('/api/v1/file/upload/complete', {
+    method: 'POST',
+    data: { uploadId },
+    headers: {
+      UploadToken: uploadToken,
+    },
+  });
+}
+
+/** 中止分片上传 POST /api/v1/file/upload/abort */
+export async function abortChunkUpload(uploadId: string) {
+  return request<API.MyResponse<any>>('/api/v1/file/upload/abort', {
+    method: 'POST',
+    data: { uploadId },
+  });
+}
+
+/**
+ * 高级分片上传：支持自动切片、并发、断点续传、进度回调、取消
+ *
+ * @param file       浏览器 File 对象
+ * @param dir        目标子目录（相对上传根）
+ * @param uploadToken 已生成的 UploadToken
+ * @param opts       可选配置
+ *   - chunkSize: 单片字节数（默认 5MB）
+ *   - concurrent: 并发上传分片数（默认 3）
+ *   - onProgress: 总进度回调 (0-100)
+ *   - onChunkProgress: 单片进度回调
+ *   - fileMD5: 可选，用于秒传/校验
+ *   - signal: AbortSignal 用于取消
+ */
+export async function chunkedUpload(
+  file: File,
+  dir: string,
+  uploadToken: string,
+  opts?: {
+    chunkSize?: number;
+    concurrent?: number;
+    fileMD5?: string;
+    overwrite?: boolean;
+    onProgress?: (percent: number, uploadedBytes: number, totalBytes: number) => void;
+    signal?: AbortSignal;
+  },
+): Promise<API.CompleteChunkUploadResp> {
+  const chunkSize = opts?.chunkSize || 5 * 1024 * 1024;
+  const concurrent = opts?.concurrent || 3;
+  const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
+
+  // Step 1: init
+  const initResp = await initChunkUpload(
+    {
+      fileName: file.name,
+      fileSize: file.size,
+      chunkSize,
+      totalChunks,
+      fileMD5: opts?.fileMD5,
+      dir,
+      overwrite: opts?.overwrite,
+    },
+    uploadToken,
+  );
+  if (initResp.errorCode !== 0 || !initResp.data) {
+    throw new Error(initResp.msg || 'init upload failed');
+  }
+
+  // 秒传命中
+  if (initResp.data.instant) {
+    opts?.onProgress?.(100, file.size, file.size);
+    return {
+      uploadId: initResp.data.uploadId,
+      fileName: file.name,
+      fileSize: file.size,
+      fileMD5: opts?.fileMD5 || '',
+      path: '',
+    };
+  }
+
+  const uploadId = initResp.data.uploadId;
+  const uploadedSet = new Set<number>(initResp.data.uploadedIdx || []);
+
+  // Step 2: 计算所有待上传分片（排除已上传）
+  const pending: number[] = [];
+  for (let i = 0; i < totalChunks; i++) {
+    if (!uploadedSet.has(i)) pending.push(i);
+  }
+
+  let uploadedChunks = uploadedSet.size;
+  const reportProgress = () => {
+    const uploaded = Math.min(uploadedChunks * chunkSize, file.size);
+    const percent = Math.round((uploaded / file.size) * 100);
+    opts?.onProgress?.(percent, uploaded, file.size);
+  };
+  reportProgress();
+
+  // Step 3: 并发上传
+  let cursor = 0;
+  let aborted = false;
+  const fail: Error[] = [];
+
+  const checkSignal = () => {
+    if (opts?.signal?.aborted) aborted = true;
+  };
+
+  const worker = async () => {
+    while (!aborted && fail.length === 0) {
+      checkSignal();
+      if (aborted) return;
+
+      const idx = cursor++;
+      if (idx >= pending.length) return;
+      const chunkIndex = pending[idx];
+
+      const start = chunkIndex * chunkSize;
+      const end = Math.min(start + chunkSize, file.size);
+      const blob = file.slice(start, end);
+
+      // 重试 3 次
+      let lastErr: Error | null = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await uploadSingleChunk(uploadId, chunkIndex, blob, uploadToken);
+          lastErr = null;
+          break;
+        } catch (e) {
+          lastErr = e as Error;
+          if (aborted) return;
+          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        }
+      }
+      if (lastErr) {
+        fail.push(lastErr);
+        return;
+      }
+      uploadedChunks++;
+      reportProgress();
+    }
+  };
+
+  await Promise.all(Array.from({ length: concurrent }, () => worker()));
+
+  if (opts?.signal?.aborted) {
+    await abortChunkUpload(uploadId).catch(() => {});
+    throw new Error('upload aborted');
+  }
+  if (fail.length > 0) {
+    throw fail[0];
+  }
+
+  // Step 4: complete
+  const completeResp = await completeChunkUpload(uploadId, uploadToken);
+  if (completeResp.errorCode !== 0 || !completeResp.data) {
+    throw new Error(completeResp.msg || 'complete upload failed');
+  }
+  opts?.onProgress?.(100, file.size, file.size);
+  return completeResp.data;
+}
+
+

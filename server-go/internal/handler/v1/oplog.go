@@ -279,6 +279,12 @@ func buildDetail(c *gin.Context, action string) string {
 		return "重命名图片"
 	case "image_clear":
 		return "清空所有图片"
+	case "chunk_upload_init":
+		return "初始化分片上传"
+	case "chunk_upload_complete":
+		return "完成分片上传"
+	case "chunk_upload_abort":
+		return "中止分片上传"
 	default:
 		return ""
 	}

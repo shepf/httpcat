@@ -24,7 +24,14 @@ var whiteUrlList = []string{
 	"/api/v1/file/download",        // 下载文件，我们需要开放出来
 	"/api/v1/imageManage/upload",   // 上传图片，使用 UploadToken 校验
 	"/api/v1/imageManage/download", // 下载图片
-	"/api/v1/user/login/account"}
+	"/api/v1/user/login/account",
+	// v0.7.0: 分片上传相关接口（使用 UploadToken 在 handler 内部校验，和 /upload 保持一致）
+	"/api/v1/file/upload/init",
+	"/api/v1/file/upload/status",
+	"/api/v1/file/upload/chunk",
+	"/api/v1/file/upload/complete",
+	"/api/v1/file/upload/abort",
+}
 
 // queryTokenUrlList 允许从 URL query 参数获取 token 的路径（v0.6.0：用于文件预览 img/video/audio 标签）
 var queryTokenUrlList = []string{

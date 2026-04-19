@@ -25,6 +25,8 @@ type AuthRequest struct {
 func UserLogin(c *gin.Context) {
 	ylog.Infof("UserLogin", "UserLogin function called")
 
+	clientIP := c.ClientIP()
+
 	var user AuthRequest
 
 	// 通过c.BindJSON(&user)将请求体中的JSON数据绑定到user结构体中。如果绑定失败，会返回参数无效的错误响应。
@@ -38,6 +40,7 @@ func UserLogin(c *gin.Context) {
 		//使用jwt token
 		userInfo, err := midware.CheckUser(user.Username, user.Password)
 		if err != nil {
+			midware.RecordLoginFailure(clientIP)
 			common.Unauthorized(c, err.Error())
 			return
 		}
@@ -46,6 +49,8 @@ func UserLogin(c *gin.Context) {
 			common.Unauthorized(c, err.Error())
 			return
 		}
+
+		midware.RecordLoginSuccess(clientIP)
 
 		c.JSON(
 			http.StatusOK,
@@ -58,8 +63,10 @@ func UserLogin(c *gin.Context) {
 	userInfo, err := midware.CheckUser(user.Username, user.Password)
 	//密码校验
 	if err != nil {
+		midware.RecordLoginFailure(clientIP)
 		common.Unauthorized(c, "verify password failed")
 	} else {
+		midware.RecordLoginSuccess(clientIP)
 		token := midware.GeneralSession()
 		//todo token存储到reids
 		//err = infra.Grds.Set(context.Background(), token, user.Username, time.Duration(login.GetLoginSessionTimeoutMinute())*time.Minute).Err()

@@ -45,6 +45,7 @@ import {
   downloadZip,
   getFirstUploadToken,
   uploadFileToDir,
+  chunkedUpload,
 } from '@/services/ant-design-pro/api';
 import FilePreview from '../components/FilePreview';
 
@@ -161,7 +162,10 @@ const FileList: React.FC = () => {
     return () => document.removeEventListener('paste', handlePaste);
   }, [currentDir, uploadToken]);
 
-  // ========== v0.6.0: 文件上传核心逻辑 ==========
+  // ========== v0.6.0/v0.7.0: 文件上传核心逻辑 ==========
+  // v0.7.0: 大于 CHUNK_THRESHOLD 的文件自动走分片上传（支持断点续传、进度条）
+  const CHUNK_THRESHOLD = 10 * 1024 * 1024; // 10MB
+
   const handleUploadFiles = async (files: File[]) => {
     const token = await ensureUploadToken();
     if (!token) return;
@@ -175,11 +179,26 @@ const FileList: React.FC = () => {
 
     for (const file of files) {
       try {
-        await uploadFileToDir(file, currentDir, token);
+        if (file.size >= CHUNK_THRESHOLD) {
+          // 大文件：分片上传
+          await chunkedUpload(file, currentDir, token, {
+            chunkSize: 5 * 1024 * 1024,
+            concurrent: 3,
+            onProgress: (percent) => {
+              // 把单个文件进度叠加到整体进度
+              const overall = Math.round(((completed + percent / 100) / total) * 100);
+              setUploadProgress(overall);
+            },
+          });
+        } else {
+          // 小文件：普通上传
+          await uploadFileToDir(file, currentDir, token);
+        }
         completed++;
         setUploadProgress(Math.round((completed / total) * 100));
-      } catch {
-        message.error(`上传失败: ${file.name}`);
+      } catch (err: any) {
+        const reason = err?.message || '';
+        message.error(`上传失败: ${file.name}${reason ? ` (${reason})` : ''}`);
       }
     }
 

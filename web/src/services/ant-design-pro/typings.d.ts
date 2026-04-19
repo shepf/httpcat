@@ -372,4 +372,46 @@ declare namespace API {
     todayCount?: number;
     actionCounts?: { action: string; count: number }[];
   }
+
+  // ===== v0.7.0 分片上传 + 断点续传 =====
+  interface InitChunkUploadParams {
+    fileName: string;
+    fileSize: number;
+    chunkSize?: number;
+    totalChunks?: number;
+    fileMD5?: string;
+    dir?: string;
+    overwrite?: boolean;
+  }
+
+  interface InitChunkUploadResp {
+    uploadId: string;
+    chunkSize: number;
+    totalChunks: number;
+    uploadedNum: number;
+    uploadedIdx: number[];
+    instant: boolean;
+    expireAt: number;
+  }
+
+  interface ChunkUploadStatus {
+    uploadId: string;
+    fileName: string;
+    fileSize: number;
+    chunkSize: number;
+    totalChunks: number;
+    uploadedNum: number;
+    uploadedIdx: number[];
+    missingIdx: number[];
+    status: 'active' | 'completed' | 'aborted';
+    expireAt: number;
+  }
+
+  interface CompleteChunkUploadResp {
+    uploadId: string;
+    fileName: string;
+    fileSize: number;
+    fileMD5: string;
+    path: string;
+  }
 }

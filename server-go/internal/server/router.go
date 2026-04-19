@@ -70,7 +70,8 @@ func RegisterRouter(r *gin.Engine) {
 		//用户操作相关接口
 		userRouter := apiv1Group.Group("/user")
 		{
-			userRouter.POST("/login/account", v1.UserLogin)
+			// v0.7.0: 登录接口加限流（防止密码爆破）
+			userRouter.POST("/login/account", midware.LoginRateLimit(), v1.UserLogin)
 			userRouter.GET("/currentUser", v1.UserInfo)
 			userRouter.POST("/login/outLogin", v1.UserLoginout)
 			userRouter.POST("/changePasswd", v1.ChangePasswd)
@@ -131,6 +132,13 @@ func RegisterRouter(r *gin.Engine) {
 			fileRouter.GET("/preview", v1.PreviewFile)
 			fileRouter.GET("/previewInfo", v1.GetPreviewInfo)
 			fileRouter.POST("/downloadZip", v1.DownloadZip)
+
+			// v0.7.0 新增：分片上传 + 断点续传
+			fileRouter.POST("/upload/init", v1.InitChunkUpload)
+			fileRouter.GET("/upload/status", v1.GetChunkUploadStatus)
+			fileRouter.POST("/upload/chunk", v1.UploadChunk)
+			fileRouter.POST("/upload/complete", v1.CompleteChunkUpload)
+			fileRouter.POST("/upload/abort", v1.AbortChunkUpload)
 		}
 
 		imageManageRouter := apiv1Group.Group("/imageManage")
