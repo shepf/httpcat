@@ -8,16 +8,62 @@ HttpCat 是一个基于 HTTP 的文件传输服务，旨在提供简单、高效
 
 ## ✨ 功能特点
 
-- 🚀 **简单高效** - 易于部署，无需外部依赖
-- 🎨 **现代化界面** - 基于 React 的美观管理界面
-- 📦 **大文件上传** - 分片上传 + 断点续传 + 秒传，支持 100GB 级超大文件（v0.7.0+）
-- 🔗 **文件分享** - 通过链接分享文件，支持有效期、下载次数限制和提取码保护
-- 🤖 **MCP 支持** - AI 助手（Claude、Cursor、CodeBuddy）可直接管理你的文件
-- 🐳 **Docker 就绪** - 一键 Docker 部署
-- 🔐 **安全可靠** - bcrypt 密码加密、登录限流防爆破、路径安全防护
-- 🔑 **Open API** - AK/SK 签名认证，脚本/CI/AI 可直接调用所有 API
-- 📊 **统计功能** - 详细的上传下载历史记录 + 操作日志审计
-- ⚙️ **Web 配置管理** - 在浏览器中直接修改服务配置，支持热更新和一键重启
+### 📦 文件传输核心
+
+- 🚀 **大文件上传** - 分片上传 + 断点续传 + 秒传，支持 **100GB** 级超大文件（v0.7.0+）
+- ⚡ **高效下载** - HTTP Range 支持，`wget -c` / `curl -C -` 断点续传、浏览器拖拽视频进度（v0.7.0+）
+- 📤 **单次上传** - 小文件走一次性 HTTP，简单脚本直接 `curl -F` 即可
+- 🗂️ **子目录支持** - 完整的目录树浏览、创建、批量操作（v0.5.0+）
+- 🧩 **多文件 ZIP 下载** - 勾选多个文件，服务端即时打包为 ZIP（v0.6.0+）
+- 👁️ **文件在线预览** - 文本/代码/Markdown/图片/视频/音频/PDF 直接在浏览器查看（v0.6.0+）
+- 🖼️ **图片专用管理** - 独立的图片画廊视图 + 自动缩略图
+
+### 🔗 分享与协作
+
+- 🔗 **文件分享链接** - 一键生成分享链接，支持：
+  - ⏳ 有效期（自定义到期时间）
+  - 🎯 下载次数限制（达到上限自动失效）
+  - 🔑 提取码保护（4 位数字密码）
+  - 👁️ 匿名访问开关（可配置分享是否需要登录）
+- 📊 **分享管理** - 统一查看/删除所有已创建的分享，实时统计访问次数
+
+### 🤖 AI 与自动化
+
+- 🤖 **MCP 协议支持** - 15 个 MCP Tools，AI 助手（Claude Desktop / Cursor / CodeBuddy / OpenClaw）可直接管理文件
+- 🧠 **AI Skill 集成** - 提供符合 [Agent Skills 规范](https://agentskills.io/) 的 Skill 包，一键软链接到 AI IDE
+- 🔑 **Open API** - AK/SK 签名认证（AWS V4 风格），脚本/CI/自动化系统无需登录即可调用全部 API
+- 🎫 **UploadToken 机制** - 独立的上传凭证，可配置策略（大小限制/有效期/回调通知）
+
+### 🔐 安全与审计
+
+- 🔐 **bcrypt 密码加密** - 行业标准的密码哈希，自动升级旧版 SHA1 哈希
+- 🛡️ **登录限流防爆破** - 5 分钟内失败 5 次自动锁定 15 分钟（v0.7.0+）
+- 🚧 **路径穿越防护** - 所有文件路径经 `ResolvePathWithinBase` 校验，杜绝越权访问
+- 📜 **操作日志审计** - 完整记录上传/下载/删除/分享/登录等操作，支持筛选和统计（v0.6.0+）
+- 🔒 **HTTPS/TLS** - 内置 SSL 支持，配置证书即可启用
+- 🎭 **JWT + AK/SK 双认证** - Web 端 JWT 会话、API 端 AK/SK 签名，按场景选择
+
+### 📊 监控与管理
+
+- 📊 **数据总览** - 文件总数、磁盘使用、上传/下载趋势图
+- 📈 **统计报表** - 上传/下载历史、文件类型分布、Top 文件排行
+- 💾 **磁盘监控** - 实时查看可用空间，告警阈值可配
+- 📝 **操作日志** - 谁、在什么时间、对哪个文件、做了什么，一目了然
+
+### ⚙️ 部署与运维
+
+- 🐳 **Docker 就绪** - 一键 `docker-compose up`，支持多架构镜像
+- 🛠️ **一键安装脚本** - `install.sh` 自动创建 systemd 服务、部署到 `/var/lib/httpcat`
+- 🌐 **多平台二进制** - Linux amd64/arm64、macOS arm64、Windows x64 四平台发布
+- 📦 **零外部依赖** - 单个二进制 + 内嵌 SQLite，无需 MySQL/Redis/Nginx
+- ⚙️ **Web 配置管理** - 浏览器内直接改 `svr.yml`，支持热更新 + 一键重启
+
+### 🎨 用户体验
+
+- 🎨 **现代化界面** - 基于 Ant Design Pro 5.x 的响应式 Web 控制台
+- 🌍 **国际化** - 中英文双语切换
+- 📱 **移动端友好** - 响应式布局，手机浏览器可正常使用
+- 🏠 **快捷上传页** - 首页拖拽即传，无需进入文件管理
 
 ## 📁 项目结构
 
@@ -33,7 +79,7 @@ httpcat/
 │   │   ├── mcp/                # MCP Server 实现（SSE 传输）
 │   │   ├── midware/            # 中间件（JWT/AK-SK 认证、指标采集）
 │   │   ├── models/             # 数据模型
-│   │   ├── p2p/                # P2P 文件传输（mDNS + PubSub）
+│   │   ├── p2p/                # P2P 节点发现（实验性，未用于文件传输）
 │   │   ├── server/             # 路由注册、核心业务逻辑
 │   │   └── storage/            # SQLite 存储层
 │   ├── go.mod
@@ -78,7 +124,9 @@ httpcat/
 ├── website/                    # 📂 运行时数据目录
 │   ├── upload/                 # 上传文件存储
 │   └── download/               # 下载文件存储
-├── data/                       # 💾 SQLite 数据库目录
+├── data/                       # 💾 运行时数据
+│   ├── httpcat_sqlite.db       # SQLite 数据库
+│   └── chunks/                 # 分片上传临时目录（v0.7.0+，会话过期自动清理）
 │
 ├── Dockerfile                  # Docker 镜像配置
 ├── docker-compose.yml          # Docker Compose 编排
@@ -142,7 +190,7 @@ NODE_OPTIONS=--openssl-legacy-provider npm run start:dev
 | 用户名 | `admin` |
 | 密码 | `admin` |
 
-> ⚠️ **安全提示**: 首次登录后会强制要求修改默认密码，修改前无法使用任何功能。
+> ⚠️ **安全提示**: 默认账号仅供初次登录使用，请**立即通过「修改密码」页面修改**。为防止暴力破解，登录接口内置了限流保护：同一 IP 5 分钟内失败 ≥ 5 次将锁定 15 分钟（v0.7.0+）。
 
 ## 🎉 生产环境安装
 
@@ -184,7 +232,8 @@ sudo systemctl status httpcat
 ├── upload/                         # 上传文件存储
 ├── download/                       # 下载文件缓存
 └── data/
-    └── httpcat_sqlite.db           # SQLite 数据库
+    ├── httpcat_sqlite.db           # SQLite 数据库
+    └── chunks/                     # 分片上传临时目录（v0.7.0+）
 ```
 
 ### 服务管理
@@ -251,11 +300,17 @@ HttpCat 支持 MCP 协议，让 AI 助手可以直接管理你的文件服务器
 | `list_files` | 列出上传目录中的文件 |
 | `get_file_info` | 获取文件详情（大小、MD5 等） |
 | `upload_file` | 通过 MCP 上传文件（需要 Token） |
-| `get_disk_usage` | 获取磁盘使用情况 |
-| `get_upload_history` | 查询上传历史记录 |
+| `upload_image` | 通过 MCP 上传图片 |
+| `create_folder` | 创建文件夹（v0.5.0+） |
+| `rename_file` | 重命名文件/文件夹（v0.5.0+） |
+| `batch_delete_files` | 批量删除文件（v0.5.0+） |
 | `request_delete_file` | 请求删除文件（第一步） |
 | `confirm_delete_file` | 确认删除文件（第二步） |
+| `get_disk_usage` | 获取磁盘使用情况 |
 | `get_statistics` | 获取上传/下载统计 |
+| `get_upload_history` | 查询上传历史记录 |
+| `get_download_history` | 查询下载历史记录（v0.5.0+） |
+| `get_file_overview` | 文件总览统计（v0.5.0+） |
 | `verify_file_md5` | 验证文件 MD5 完整性 |
 
 📖 详细 MCP 使用指南请查看 [docs/MCP_USAGE.md](docs/MCP_USAGE.md)
@@ -822,56 +877,107 @@ curl http://localhost:8888/api/v1/file/listFiles?dir=/
 
 ## ⚙️ 配置说明
 
-配置文件：`svr.yml`
+配置文件：`conf/svr.yml`（Docker 镜像内）或 `/etc/httpcat/svr.yml`（install.sh 安装）
 
 ```yaml
-# 服务器设置
-port: 8888
-upload_dir: "./upload"
-download_dir: "./upload"
-static_dir: "./static"
+server:
+  http:
+    port: 8888
+    # 大文件上传需要较长的读写超时（单位：秒）
+    read_timeout: 1800
+    write_timeout: 1800
+    auth:
+      open_api_enable: false       # 是否启用 Open API（AK/SK 签名认证）
+      aksk:                        # AK/SK 凭证对
+        your_access_key: your_secret_key
+    file:
+      upload_enable: true
+      enable_upload_token: true    # 是否开启 UploadToken 验证
+      app_key: "httpcat"           # 生成 UploadToken 的 app_key
+      app_secret: "httpcat_app_secret"
+      upload_policy:
+        deadline: 7200             # UploadToken 有效期（秒）
+        fsizeLimit: 0              # 单文件大小上限（字节，0=不限）
+      download_dir: "website/upload/"
+      enable_sqlite: true
+      sqlite_db_path: "./data/httpcat_sqlite.db"
 
-# 认证配置
-app_key: "httpcat"
-app_secret: "httpcat_app_secret"
-enable_upload_token: true
+  mcp:
+    enable: true                   # 启用 MCP Server（AI 助手接入）
+    auth_token: "替换为安全密码"    # MCP Bearer Token
 
-# Open API 配置（AK/SK 签名认证）
-open_api_enable: false          # 是否启用
-aksk:
-  your_access_key: your_secret_key
-
-# 数据库配置
-enable_sqlite: true
-sqlite_db_path: "./data/sqlite.db"
-
-# 通知配置（企业微信 Webhook）
-persistent_notify_url: ""
+  share:
+    enable: true                   # 启用文件分享
+    anonymous_access: true         # 分享链接是否允许匿名访问
 ```
+
+> 💡 **v0.7.0 分片上传参数**：默认 5MB/片、24 小时会话有效期、100GB 单文件上限，均为代码默认值，无需配置。前端分片阈值（10MB）可在 `web/src/pages/FileManage/FileList/index.tsx` 的 `CHUNK_THRESHOLD` 调整。
 
 ## 🍀 常见问题
 
 ### 忘记密码？
 
-删除 SQLite 数据库并重启：
+**方案 A：只重置 admin 密码（保留所有数据，推荐）**
+
+需要 Python 环境和 bcrypt 库：
 
 ```bash
-sudo find /var/lib/httpcat -name "*.db"
+# 安装依赖（只需一次）
+pip3 install bcrypt
+
+# 重置 admin 密码为 admin123（可改）
+sudo systemctl stop httpcat
+sudo python3 -c "
+import bcrypt, sqlite3, time
+pwd = b'admin123'  # 改成你想要的新密码
+h = bcrypt.hashpw(pwd, bcrypt.gensalt(10)).decode()
+c = sqlite3.connect('/var/lib/httpcat/data/httpcat_sqlite.db')
+c.execute(\"UPDATE users SET password=?, salt='', password_update_time=? WHERE username='admin'\", (h, int(time.time())))
+c.commit(); c.close()
+print('✅ 密码已重置')
+"
+sudo systemctl start httpcat
+```
+
+**方案 B：重置数据库（会清空所有数据）**
+
+```bash
+sudo systemctl stop httpcat
 sudo rm /var/lib/httpcat/data/httpcat_sqlite.db
+sudo systemctl start httpcat
+# 重启后会自动创建默认管理员账号 admin / admin
+```
+
+### 登录提示 "too many failed attempts, please try again later"？
+
+这是 v0.7.0 新增的**登录限流防爆破**机制：同一 IP 5 分钟内失败 ≥ 5 次会锁定 15 分钟。等待返回的 `lockedRemainingSeconds` 秒即可，或**重启服务**立即清除内存中的限流状态：
+
+```bash
 sudo systemctl restart httpcat
 ```
 
-重启后会自动创建默认管理员账号。
+### 分片上传失败，会残留临时文件吗？
+
+不会。有三重保障：
+1. 未完成的分片写入时使用 `.part` 临时后缀，失败不会污染 bitmap
+2. 会话默认 **24 小时**过期，后台每 30 分钟扫描清理 `data/chunks/{uploadId}/`
+3. 也可调用 `POST /api/v1/file/upload/abort` 主动中止并清理
+
+查看当前残留：`ls /var/lib/httpcat/data/chunks/`
+
+### 大文件上传后，浏览器没有进度条？
+
+确认文件大小 **≥ 10 MB**：前端代码里 `CHUNK_THRESHOLD = 10MB`，小于此值会走旧版单次上传（没有精细进度）。可在 `web/src/pages/FileManage/FileList/index.tsx` 修改阈值。
 
 ### Node.js 版本问题？
 
-Node.js 17+ 需要使用旧版 OpenSSL provider：
+本项目使用 UmiJS 3.x，需要在 Node.js 17+ 环境启用旧版 OpenSSL provider：
 
 ```bash
 NODE_OPTIONS=--openssl-legacy-provider npm run start:dev
 ```
 
-推荐使用 Node.js v16.x 以获得最佳兼容性。
+> 推荐使用 **Node.js v20.x LTS**（构建脚本已处理兼容）。使用 nvm 的用户可在 `web/` 目录运行 `nvm use` 自动切换到项目指定版本。
 
 ## 🛠️ 开发指南
 
@@ -901,6 +1007,20 @@ NODE_OPTIONS=--openssl-legacy-provider npm run start:dev
 # 显示帮助
 ./scripts/build.sh -h
 ```
+
+## 📅 版本演进
+
+| 版本 | 主题 | 核心能力 |
+|------|------|---------|
+| **v0.7.0** | 📦 大文件 & 安全 | 分片上传 + 断点续传 + 秒传 + 下载 Range + 登录限流 |
+| v0.6.0 | 🔍 审计 & 体验 | 操作日志、文件在线预览（文本/图片/视频/PDF）、多文件 ZIP 下载 |
+| v0.5.0 | 📂 深度文件管理 | 子目录、文件总览、批量操作、15 个 MCP Tools |
+| v0.4.0 | 🔒 安全 & 分享 | bcrypt 密码加密、文件分享（有效期/下载次数/提取码） |
+| v0.3.0 | 🌐 Web 自治 | 浏览器内系统配置管理 |
+| v0.2.x | 🤖 AI 集成 | MCP 协议、Docker 镜像、AK/SK 签名认证 |
+| v0.1.x | 🎯 基础 | 上传下载、SQLite、Web 界面 |
+
+> 📖 详细变更请查看 [CHANGELOG.md](CHANGELOG.md) 和 [docs/ReleaseNote.md](docs/ReleaseNote.md)
 
 ## 📝 许可证
 
