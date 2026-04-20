@@ -9,6 +9,34 @@ import styles from './Welcome.less';
 
 const { Text } = Typography;
 
+/**
+ * 语义化版本号比较
+ * @returns 正数：a > b；负数：a < b；0：相等
+ * 支持形如 v1.2.3 / 1.2.3 / v1.2.3-beta1 的版本号
+ */
+function compareVersion(a: string, b: string): number {
+  const normalize = (v: string) =>
+    v.replace(/^v/, '').split(/[.-]/).map((p) => {
+      const n = parseInt(p, 10);
+      return isNaN(n) ? p : n;
+    });
+  const pa = normalize(a);
+  const pb = normalize(b);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const va = pa[i] ?? 0;
+    const vb = pb[i] ?? 0;
+    if (typeof va === 'number' && typeof vb === 'number') {
+      if (va !== vb) return va - vb;
+    } else {
+      // 字符串比较（预发布标签）
+      if (String(va) < String(vb)) return -1;
+      if (String(va) > String(vb)) return 1;
+    }
+  }
+  return 0;
+}
+
 const CodePreview: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <pre className={styles.pre}>
     <code>
@@ -53,7 +81,8 @@ const Welcome: React.FC = () => {
             const ghData = await ghRes.json();
             const latest = ghData.tag_name || '';
             setLatestVersion(latest);
-            if (latest && ver && latest.replace(/^v/, '') !== ver.replace(/^v/, '')) {
+            // 仅当远程版本 > 本地版本时才提示更新（避免本地开发版/预发布版反向提示）
+            if (latest && ver && compareVersion(latest, ver) > 0) {
               setHasNewVersion(true);
             }
           }
